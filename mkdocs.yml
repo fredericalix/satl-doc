@@ -175,10 +175,22 @@ nav:
       - Rolling updates: use/rolling-updates.md
   - Clustering: cluster/index.md
   - Images: images/index.md
-  - Troubleshooting: trouble/index.md
+  - Troubleshooting:
+      - trouble/index.md
+      - Reading the log: trouble/reading-the-log.md
+      - The daemon: trouble/daemon.md
+      - Containers: trouble/containers.md
+      - Node-local networking: trouble/network-local.md
+      - The overlay: trouble/overlay.md
+      - The cluster: trouble/cluster.md
+      - TLS, joins and certificates: trouble/tls.md
+      - Before you report a problem: trouble/getting-help.md
+  - Differences from Docker: docker-differences.md
   - Reference:
       - reference/index.md
       - satld.toml: reference/satld-toml.md
+      - Ports and firewall: reference/ports.md
+      - Defaults and constants: reference/defaults.md
       - Command line:
           - reference/cli/index.md
           - satl version: reference/cli/version.md
@@ -202,3 +214,5 @@ nav:
           - satl secret: reference/cli/secret.md
           - satl config: reference/cli/config.md
           - satld: reference/cli/satld.md
+      - Glossary: reference/glossary.md
+      - What SatL does not do: reference/out-of-scope.md

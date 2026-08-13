@@ -42,7 +42,23 @@ Name this node reports in cluster and API output. Defaults to the hostname.
 
 ### `socket_group`
 
-Group owning the REST API socket.
+!!! danger "Accepted, printed, and not applied"
+
+    This key does nothing today. `satld` parses it and names it in the startup
+    banner, and no code anywhere changes the socket's group. The socket is
+    created `0660` and keeps whatever group the daemon runs with — `wheel`,
+    since `satld` runs as root.
+
+    The default is therefore correct by accident, and **any other value is
+    silently ignored**. Setting `socket_group = "satl"` in the belief that it
+    narrows who can drive the daemon leaves the socket exactly as it was, and
+    nothing warns you.
+
+    This matters because anyone in the socket's group can create containers,
+    which is root-equivalent on the host. To restrict it today, change the
+    socket's group yourself after the daemon starts.
+
+Intended meaning: the group owning the REST API socket.
 
 ### `pf_mode`
 
