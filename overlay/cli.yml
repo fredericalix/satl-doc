@@ -1,0 +1,89 @@
+# overlay/cli.yml -- the small amount of knowledge `satl --help` cannot carry.
+#
+# `tools/gen_cli.py` harvests the binary and nothing else. That covers names,
+# arguments, defaults, environment variables and possible values, because clap
+# prints all of them. It does not cover structure that exists only in the Rust
+# source:
+#
+#   * `#[command(flatten)] PolicyArgs` -- the twelve `--update-*`/`--rollback-*`
+#     flags are one struct shared by `service create` and `service update`, but
+#     help output flattens them into each command's option list with no marker
+#     that they are the same thing. `groups:` puts them back together.
+#   * semantic pairings -- a set difference can see that `service create` has
+#     `--constraint` and `service update` has `--constraint-add`, but not that
+#     one is the other's incremental form. `pairs:` asserts that by hand.
+#
+# Everything here is judgement. Everything not here is generated.
+
+version: 1
+
+# Flags every command carries. Excluded from the per-command tables (they would
+# be repeated on all 44 of them) and rendered once per page under
+# `## Global options`. Also excluded from the derived difference tables, where
+# they are noise by construction.
+globals:
+  - --host
+  - --help
+  - --version
+
+groups:
+  - id: service-policy
+    title: Update and rollback policy
+    # Which generated page the section is appended to.
+    page: service
+    # The commands whose option lists these flags are lifted out of. The first
+    # one is also the sample the shared table is rendered from -- they are
+    # identical by construction, being one `PolicyArgs` struct.
+    applies_to:
+      - [service, create]
+      - [service, update]
+    match:
+      - "--update-*"
+      - "--rollback-*"
+    intro: |
+      A service update replaces tasks in waves rather than all at once, and can
+      undo itself when a wave goes badly. These twelve flags configure both
+      halves of that: `--update-*` governs the roll forward, `--rollback-*` the
+      roll back, and each half takes the same five knobs plus an order.
+
+      They come from a single `PolicyArgs` struct in the SatL source, which is
+      why they are documented once here instead of twice: setting one on
+      `satl service create` records it as the service's default, and setting it
+      on `satl service update` changes it for that update and every later one.
+
+diff:
+  - id: create-vs-update
+    title: "`create` versus `update`"
+    page: service
+    left: [service, create]
+    right: [service, update]
+    intro: |
+      `satl service create` defines a service from nothing; `satl service update`
+      edits one that exists. The two option sets therefore do not mirror each
+      other, and the difference is worth knowing before you reach for a flag
+      that is not there.
+    pairs:
+      - left: "--constraint"
+        right: "--constraint-add / --constraint-rm"
+        note: >-
+          Create sets the whole constraint list at once. Update edits it in
+          place: there is no `--constraint` on update, because replacing the
+          list wholesale is rarely what you mean and always what you would get.
+      - left: "<IMAGE>"
+        right: "--image"
+        note: >-
+          The image is a required positional on create and an optional flag on
+          update -- a service cannot exist without one, and most updates do not
+          change it.
+
+# Tripwire, not documentation. clap omits `hide = true` arguments from --help,
+# so harvesting excludes them for free; this asserts that it stayed true. Add a
+# flag here the moment it is marked hidden in the SatL source, and `make gen`
+# will refuse to emit a page that leaks it.
+#
+# SatL currently hides nothing (`grep -rn 'hide' crates/satl-cli/src/` is empty),
+# so this list names the shapes that must never become public if they appear.
+deny_flags:
+  - "--internal-*"
+  - "--unsafe-*"
+  - "--dev-*"

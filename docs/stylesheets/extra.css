@@ -1,0 +1,8 @@
+/* Site-specific overrides. Material's own theme does the heavy lifting. */
+
+/* The generated CLI tables put a flag spec in the first column: keep it on
+   one line, since a wrapped `--rollback-max-failure-ratio <RATIO>` is much
+   harder to scan than a slightly wider column. */
+.md-typeset table:not([class]) td:first-child code {
+  white-space: nowrap;
+}

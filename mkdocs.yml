@@ -1,0 +1,171 @@
+# mkdocs.yml -- the SatL documentation site.
+#
+# Build it with `make build` (which adds --strict), preview with `make serve`.
+#
+# `strict` is false HERE and true THERE on purpose: `mkdocs serve` reloads on
+# every keystroke, and a strict serve dies the moment you type half a link.
+# The Makefile passes --strict to `build`, so the failure lands where it is
+# useful -- at the point of publishing -- and never while writing.
+
+site_name: SatL
+site_description: >-
+  SatL -- a cluster-first container engine for FreeBSD. OCI containers as jails,
+  with swarm-style orchestration built in.
+site_author: SatL
+copyright: >-
+  Documentation licensed under
+  <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+
+# site_url, repo_url and edit_uri are deliberately absent: there is no git
+# remote yet, and Material renders an "Edit this page" link that would 404 on
+# every page. See README.md -- adding the remote is the trigger to set them.
+
+docs_dir: docs
+site_dir: site
+strict: false
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.tooltips
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow the system theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/git-alt
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search:
+      # The default separator splits on whitespace and hyphens only, which
+      # leaves `--update-parallelism` indexed as one token: typing
+      # "parallelism" finds nothing. Splitting on `-`, `_`, `.` and `/` as
+      # well makes every part of a flag name searchable, which is how anyone
+      # actually looks for one.
+      separator: '[\s\-\._/]+'
+  - git-revision-date-localized:
+      # The generated pages carry no timestamp by design -- a timestamp in the
+      # file would churn every diff and make `make check-gen` useless. This
+      # plugin puts the date back where it belongs: read from git at build
+      # time, so it cannot claim a page is fresher than its last commit.
+      #
+      # GIT_DATES is set to false by the Makefile while the repository has no
+      # commits yet. In that state the plugin warns once per page ("Unable to
+      # read git logs"), and `build --strict` turns those warnings into a
+      # failure -- so a brand-new checkout could not build at all. The variable
+      # defaults to true: the moment there is a commit, dates come back with no
+      # configuration change.
+      enabled: !ENV [GIT_DATES, true]
+      enable_creation_date: true
+      fallback_to_build_date: true
+      type: date
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      permalink_title: Link to this section
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: [docs/snippets]
+      check_paths: true
+
+# What gives --strict its teeth. Without `anchors: warn` a link to a heading
+# that does not exist resolves to nothing and mkdocs says not one word -- which
+# matters here more than usual, because the generated CLI pages are what
+# narrative pages deep-link into, and their anchors move when SatL renames a
+# subcommand.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+not_in_nav: |
+  snippets/*
+
+nav:
+  - Home: index.md
+  - About: about/index.md
+  - Getting started: start/index.md
+  - Configuration: config/index.md
+  - Using SatL: use/index.md
+  - Clustering: cluster/index.md
+  - Images: images/index.md
+  - Troubleshooting: trouble/index.md
+  - Reference:
+      - reference/index.md
+      - satld.toml: reference/satld-toml.md
+      - Command line:
+          - reference/cli/index.md
+          - satl version: reference/cli/version.md
+          - satl run: reference/cli/run.md
+          - satl ps: reference/cli/ps.md
+          - satl stop: reference/cli/stop.md
+          - satl kill: reference/cli/kill.md
+          - satl rm: reference/cli/rm.md
+          - satl wait: reference/cli/wait.md
+          - satl logs: reference/cli/logs.md
+          - satl exec: reference/cli/exec.md
+          - satl inspect: reference/cli/inspect.md
+          - satl pull: reference/cli/pull.md
+          - satl images: reference/cli/images.md
+          - satl volume: reference/cli/volume.md
+          - satl network: reference/cli/network.md
+          - satl swarm: reference/cli/swarm.md
+          - satl ca: reference/cli/ca.md
+          - satl node: reference/cli/node.md
+          - satl service: reference/cli/service.md
+          - satl secret: reference/cli/secret.md
+          - satl config: reference/cli/config.md
+          - satld: reference/cli/satld.md
