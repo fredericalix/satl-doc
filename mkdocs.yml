@@ -156,8 +156,23 @@ nav:
       - Install: start/install.md
       - Your first container: start/first-container.md
       - What just happened: start/what-happened.md
-  - Configuration: config/index.md
-  - Using SatL: use/index.md
+  - Configuration:
+      - config/index.md
+      - satld.toml: config/satld-toml.md
+      - The rc.d service: config/service.md
+      - Logs: config/logging.md
+      - Node state on disk: config/state.md
+  - Using SatL:
+      - use/index.md
+      - Containers and services: use/containers-and-services.md
+      - Images: use/images.md
+      - Networks: use/networks.md
+      - Publishing ports: use/publishing-ports.md
+      - Storage: use/storage.md
+      - Secrets and configs: use/secrets-and-configs.md
+      - Resource limits: use/resource-limits.md
+      - Healthchecks: use/healthchecks.md
+      - Rolling updates: use/rolling-updates.md
   - Clustering: cluster/index.md
   - Images: images/index.md
   - Troubleshooting: trouble/index.md
