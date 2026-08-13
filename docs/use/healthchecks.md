@@ -69,6 +69,10 @@ healthy, anything else is a failure**.
 | `Retries` | 3 | **consecutive** failures needed for `unhealthy` |
 | `StartPeriod` | 0 | grace window at the beginning |
 
+Those are Docker's defaults, and they are what you get — unless the service
+[publishes a port](#publishing-a-port-tightens-the-defaults), which changes three
+of them.
+
 - The **first probe runs one interval after the container starts**, never at
   t = 0.
 - `Retries` consecutive failures make it unhealthy; **a single success resets the
@@ -93,6 +97,130 @@ healthy, anything else is a failure**.
     probes on `min(interval, 5 s)`, which is Docker's own default for the field.
     So a slow starter is not held back by a long `interval`, and an interval
     already shorter than 5 s is never slowed down.
+
+## Publishing a port tightens the defaults
+
+A service that [publishes a port](publishing-ports.md) is the one case where the
+probe is not just a status light: it is what takes a dead backend out of the
+traffic. `pf` is a packet filter, and a `round-robin` redirect pool never probes
+what it redirects to, so a container that stops answering keeps receiving its
+share of the connections until something one layer up removes it. That something
+is the healthcheck.
+
+So where a service publishes a port, and **only** there, SatL applies tighter
+defaults than Docker's:
+
+| Field | Docker, and SatL elsewhere | SatL, published service |
+| --- | --- | --- |
+| `Interval` | 30 s | **5 s** |
+| `Timeout` | 30 s | **3 s** (or `min(30 s, interval)` if you set the interval) |
+| `Retries` | 3 | **2** |
+| `StartPeriod` | 0 | 0 — unchanged, it is a property of your boot time |
+
+They are applied **field by field, and only where you left the field unset**. An
+explicit value always wins, so Docker's behaviour is available by asking for it
+(`Interval: 30000000000`, `Timeout: 30000000000`, `Retries: 3`).
+
+The tighter timeout is not cosmetic. The prober runs one probe at a time, so an
+oversized timeout does not overlap probes — it stretches the detection bound to
+`retries × (interval + timeout)` with nothing in the configuration looking wrong.
+A hanging probe on 5 s/30 s/2 takes 70 s to a verdict, not 10 s.
+
+!!! note "The values are written into the stored spec, not applied at probe time"
+
+    Docker applies its defaults as the prober runs and leaves the stored spec
+    exactly as you posted it, zeroes included. SatL writes the effective numbers
+    into the spec at create and update, so `satl service inspect` shows the values
+    the prober will use rather than a `0` that means something else, and logs one
+    line naming them:
+
+    ```sh
+    sudo grep -a 'tighter health probe defaults' /var/log/messages
+    # … applied to a published service … name=web published=8080->80/tcp \
+    #   applied=interval=5s timeout=3s retries=2
+    ```
+
+    The consequence to know is that they then look **explicit**: removing the
+    published port later does not restore Docker's 30 s, because nothing can tell
+    your `5s` from ours.
+
+### What it buys, and what it costs
+
+Measured end to end on one node, nginx with a file-existence probe and the marker
+then removed: **9.97 s** from the probe starting to fail to the task's address
+being out of the pf redirect pool. The same run with Docker's defaults would be
+about 90 s of traffic into a dead backend.
+
+!!! warning "Here, leaving the pool and being killed are the same event"
+
+    Docker leaves an unhealthy container running and merely takes it out of the
+    load balancer. SatL [stops it](#the-second-difference-an-unhealthy-task-is-replaced).
+    So tightening detection ninefold makes **replacement** ninefold more eager
+    too.
+
+    A long GC pause, a wedged dependency, a probe that blips under load: what used
+    to need 90 s of failure to cost you a container now needs 10 s. That is how a
+    restart storm starts where the operator only wanted the traffic to stop — and
+    the tighter the probe, the smaller the hiccup that triggers it.
+
+Two things bound it. `Retries` is what separates a blip from a sustained failure —
+2 retries at 5 s means the probe must fail for **10 s continuously**, and a single
+success resets the streak. And the restart budget bounds the loop:
+`RestartPolicy.MaxAttempts` counts replacements per replica and per spec version
+and [survives a leadership change](../trouble/cluster.md#restart-budget-spent), so
+a service created with it stops replacing instead of churning for ever. The default
+is unlimited, so on a service that matters, set it.
+
+### Trading detection latency for stability
+
+A verdict takes up to `retries + 1` cycles of `interval + timeout` — one cycle
+more than `retries`, because a container stops answering *between* two probes and
+the probe already in flight may have passed a moment before. The stop that follows
+takes up to `stop_grace_period` (10 s by default), and a failed `pfctl` load is
+repaired by the next port pass within 5 s:
+
+| `interval` | `retries` | sustained failure needed | worst case out of the pool |
+| --- | --- | --- | --- |
+| 5 s (both unset) | 2 | 10 s | 3 × (5+3) + 10 + 5 = 39 s |
+| 5 s (unset) | 4 | 20 s | 5 × (5+3) + 10 + 5 = 55 s |
+| 10 s (explicit) | 3 | 30 s | 4 × (10+10) + 10 + 5 = 95 s |
+| 30 s (Docker's, explicit) | 3 | 90 s | 4 × (30+30) + 10 + 5 = 255 s |
+
+The third column is what protects a healthy-but-slow container; the fourth is how
+long a dead one keeps taking traffic. **Raising `retries` is usually the better
+knob**: it lengthens the failure a blip has to sustain without slowing the probe
+down. Raising `interval` slows detection *and* slows the first probe after a
+start — and note that setting the interval explicitly also moves the timeout to
+`min(30 s, interval)`, so set `timeout` too if your probe is slow.
+
+### A published service with no probe at all is a warning
+
+At create and update, in the `Warnings` array and in the log:
+
+```console
+$ satl service create --name web -p 8080:80 registry.example.com/nginx:1
+service web publishes 8080->80/tcp and has no healthcheck: its tasks are published
+as soon as the jail starts, before the workload can answer, and stay published
+while a dead container keeps its share of the traffic
+```
+
+It is a warning and not a refusal, because a service with no probe is legitimate —
+you may health-check the port from a load balancer instead. It is just usually not
+what the publisher meant. The measurement behind it: the redirect was installed
+5 ms after `jail start`, against the 250 ms the nginx in that jail needed to bind
+its port.
+
+!!! danger "`satl run -p` is always in that state, and cannot be fixed"
+
+    The container API reads **no healthcheck at all** — Docker's `--health-cmd`
+    and friends are accepted by the JSON parser and dropped — and `satl run` has
+    no flag to set one. So a published container is never health-gated: its
+    redirect appears as soon as the jail starts and is never removed while the
+    jail stays up.
+
+    `satl run -p` is deliberately *not* warned about, because there would be no
+    way to comply, and a warning nobody can act on is how warnings that matter get
+    ignored. Publish through a **service** if you want the gate.
 
 ## The first difference: health gates `RUNNING`
 

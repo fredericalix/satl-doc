@@ -5,48 +5,77 @@ is a bug; several items on it have real operational costs, and the point of
 listing them together is so that you meet them here rather than in production.
 
 The two entries you should read before running SatL for any length of time are
-[disk reclamation](#no-prune) and [backup and restore](#no-backup).
+[automatic reclamation](#no-prune) and [backup and restore](#no-backup).
 
-## No image or layer reclamation { #no-prune }
+## No automatic reclamation, and none across the cluster { #no-prune }
 
-!!! danger "Disk use grows without bound"
+Space *is* reclaimable: `satl system prune` removes stopped containers, unused
+networks, unreferenced image content and unreferenced layer datasets, and
+[Reclaiming space](../use/reclaiming-space.md) is the page for it. What does not
+exist is anything that does it for you, or anything that does it for more than one
+node.
 
-    There is **no `prune` of any kind and no layer garbage collection.** Nothing
-    in SatL ever deletes an image, a layer dataset, or the content store entry
-    behind them — not on image removal, not on service removal, not on a timer.
-    Every image ever pulled on a node stays on that node's disk for as long as
-    the node exists.
+!!! warning "Reclamation is manual and node-local"
 
-    A node that pulls a new tag on every deploy will fill its pool. This is the
-    single most likely way to take a SatL node down.
+    - **Nothing runs on a timer.** No image, layer or content-store entry is ever
+      deleted on image removal, on service removal, or in the background. A node
+      that pulls a new tag on every deploy and is never pruned will still fill its
+      pool.
+    - **One prune reclaims one node.** Containers and networks are cluster objects,
+      so those are cluster-wide; images, layers, blobs and volumes are on the node
+      whose daemon answered. Reclaiming a cluster means running it on every node.
+    - **There is one verb.** No `satl image prune`, `satl container prune`,
+      `satl network prune` or `satl volume prune`, and no `--filter` — an unknown
+      filter is a `400` rather than a silent no-op, because on a command whose job
+      is destroying things, ignoring a filter deletes more than the caller asked
+      for.
 
-What *is* reclaimed: a container's writable layer, when its task is removed —
-possibly a minute late, and handled by a sweep that runs every 20 s.
+What is reclaimed without being asked: a container's writable layer, when its task
+is removed — possibly a minute late, by a sweep that runs every 20 s.
 
-**What to do instead.** Watch the pool and reclaim by hand:
+**What to do.** Schedule it, per node, and watch the pool between runs:
 
 ```sh
+for n in alpha beta gamma; do ssh "$n" satl system prune -f; done
 zfs list -o name,used,refer -r zroot/satl
-zfs list -t snapshot -r zroot/satl/layers | wc -l
 ```
 
-Removing a layer dataset by hand is destroying data other images may share
-through clones, so treat it as a last resort and check `zfs list -o
-name,origin` before destroying anything. On a node you can afford to empty, the
-supported reset is to destroy and recreate the whole state dataset — which also
-destroys the node's identity and Raft state, so it is a rejoin, not a cleanup.
+Do **not** reach for `zfs destroy` on a layer dataset. Nothing reconciles that:
+the image metadata still records the chain, so the image goes on being listed and
+the next container created from it fails at clone time naming a dataset you deleted
+by hand.
 
-## No `satl compose` { #no-compose }
+## `satl compose` is a subset, and it is a stack { #compose-limits }
 
-There is no `satl compose` verb and no Compose file support.
+There **is** a `satl compose` — `up`, `down`, `ps`, `config` — and it has
+[stack semantics](../use/compose.md): one service per compose service, on an
+overlay, scheduled across the cluster. That is `docker stack deploy`'s model, not
+`docker compose`'s, and it is forced rather than chosen: SatL has no standalone
+container to make.
 
-**What to do instead.** Write services. A Compose file's `services:` block maps
-onto `satl service create` reasonably directly — image, command, environment,
-networks, published ports, secrets — and what it does *not* map onto (build
-contexts, `depends_on` ordering, `restart: unless-stopped` semantics) is either
-absent here or means something different. For anything scripted, post
-`ServiceSpec` documents to the REST API: it accepts the full Docker shape,
-including the fields the CLI has no flag for.
+What is deliberately not there:
+
+- **No variable interpolation.** `${TAG}` and `$TAG` are refused, naming the line
+  and column. There is no `.env` loading and no `${VAR:-default}` grammar.
+  Substitute the values before deploying. (`$$` → `$` *is* applied, as Compose
+  specifies.)
+- **No merging.** One `-f`, no override file, no `include:`, no `extends:`.
+  Docker's merge rules are intricate and a half-merge is worse than none.
+- **No `build`, `pull`, `run`, `exec`, `logs`, `restart`, `stop`/`start`, `top`,
+  `events`, `--wait` or `--profile`**, and `up` is always detached — a
+  cluster-wide log stream needs a log broker that does not exist yet.
+- **No `down -v`.** A volume is a node-local dataset on whichever nodes ran a
+  task, and volume labels are not persisted, so there is no label to scope a
+  cluster-wide removal by. `satl compose config` prints the names; remove them
+  per node.
+- **No secret or config created from a file.** Only `external: true` — a secret is
+  immutable, so a second `up` after editing the file would silently keep the old
+  payload.
+- **The single-host half of the Compose Spec is refused, not ignored.**
+  `container_name`, `scale`, `privileged`, `build`, `network_mode`, `profiles`,
+  `extends` and about forty more each fail with the file, the key and the reason
+  named. Docker's own `stack deploy` prints `Ignoring unsupported options: …` and
+  carries on; a 200-line file that half-deployed is what this refuses.
 
 ## No `satl build` { #no-build }
 
@@ -84,42 +113,33 @@ gRPC protocol or the on-disk Raft format, and no rolling-upgrade orchestration.
 **What to do instead.** Deploy the same build to every node. Treat a version
 change as a change you rehearse on a cluster you can afford to rebuild.
 
-## No tested backup or restore { #no-backup }
+## No backup command, and no recovery from a lost quorum { #no-backup }
 
-**There is no backup procedure, and no restore procedure has been tested.** This
-section states what is known and stops there; do not read a runbook into it.
+The procedure exists and is measured — [Backup and
+restore](../cluster/backup-restore.md) — but it is `zfs`, `tar` and two cluster
+commands, deliberately. What does not exist:
 
-What is known, as facts:
+- **No `satl backup` verb and nothing cluster-wide.** A copy is per manager: the
+  `dek` that seals a manager's raft log is generated on that node and does not
+  open another's state, so one manager's backup is only ever useful to that
+  manager.
+- **No `ForceNewCluster`.** Docker's `swarm init --force-new-cluster` rebuilds a
+  cluster from one surviving manager by discarding the other members; SatL answers
+  `501`, permanently. A manager that *has* its raft state resumes on a plain
+  restart, and one that has lost it has nothing to force from.
+- **Therefore: no recovery from a permanently lost quorum, from inside the
+  cluster.** Writes hang rather than fail, `satl node ls` goes on reporting every
+  node `Ready`, a replacement manager cannot be issued a certificate, and even
+  `service satld stop` hangs. The only way back is restoring a majority of the
+  raft directories from their own backups.
+- **A raft backup is only cluster state.** Images, layers, containers and volumes
+  are node-local and are not in it; they come back by pulling and by rescheduling.
 
-- **cluster state lives in `<state_dir>/raft`** — the Raft log (`log.redb`), the
-  snapshot, this node's cluster identity (`node-id`), its Raft member id
-  (`raft-id`), and the `dek`;
-- **the log and the snapshots are encrypted at rest** with the `dek`, which is a
-  `0600` file in that same directory. Without it, that node's Raft state is
-  unreadable. On a multi-manager cluster the node could re-sync from its peers;
-  a single-node cluster's state would be lost;
-- **a snapshot file appears after roughly 10 000 writes**, not before, so a fresh
-  cluster's whole state is in the log;
-- **crash recovery from that directory works** and is exercised: a `kill -9` on
-  `satld` is followed by a restart that recovers cluster state and the same node
-  identity;
-- **certificates live in `<state_dir>/certs`**, and a node that loses them but
-  keeps its cluster membership is a node that has to rejoin;
-- **`ForceNewCluster` is not implemented** — the disaster-recovery path that
-  Docker offers for reconstituting a cluster from one surviving manager answers
-  `501` here.
-
-What follows from those facts, and no further: copying `<state_dir>/raft` from a
-stopped manager captures that manager's view of cluster state including the key
-that decrypts it. Whether restoring such a copy onto a node produces a working
-cluster has not been tested, and a partially restored Raft group is a worse
-state than an empty one.
-
-**What to do instead.** Keep the *inputs* recoverable rather than the state:
-your service specs and network definitions as files you can re-apply, your
-images in a registry, your secrets in whatever system you generated them from.
-A SatL cluster is cheap to rebuild from those and expensive to reason about
-half-restored.
+**What to do.** Run **three managers and back up the raft directory of at least
+two of them.** Three managers make an ordinary single failure free — a lost manager
+is rejoined in about six seconds, no backup involved — and the backup is for the
+day two of them go at once. Two managers are strictly worse than one: quorum is 2,
+so losing either stops every write and leaves the survivor unrecoverable.
 
 ## No routing mesh { #no-mesh }
 

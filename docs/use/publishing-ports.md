@@ -116,6 +116,37 @@ Three consequences follow directly:
 
 The full routing mesh is future work.
 
+## pf does not health-check what it redirects to
+
+It is a packet filter. A `round-robin` pool distributes connections and never
+probes a target, so a container that stops answering on its port **keeps receiving
+its share of the traffic**. Nothing in pf will ever fix that, and nothing should:
+what takes a dead backend out of the pool is one layer up. An unhealthy task is
+stopped, leaves the live set, and the next port pass rewrites the whole anchor
+without it. Docker Swarm works the same way — IPVS does not probe backends either.
+
+!!! warning "Without a probe, `RUNNING` only means \"the jail started\""
+
+    Measured when publishing landed: the redirect was installed **5 ms** after
+    `jail start`, while the nginx in that same jail needed **250 ms** to bind its
+    port. So an unprobed published service is answered before it can serve — and,
+    worse, stays answered after it stops serving, for as long as its jail is up.
+
+    `satl service create -p` says so once, at creation, if the service has no
+    healthcheck.
+
+Because the probe is load-bearing here and nowhere else, **publishing a port
+changes the probe defaults**: 5 s interval, 3 s timeout, 2 retries instead of
+Docker's 30/30/3, wherever you left the field unset. That takes a dead backend out
+of the pool in about 10 s instead of about 90 — and, because SatL *stops* an
+unhealthy task rather than merely unrouting it, it also makes replacement that
+much more eager.
+
+That trade, the arithmetic for tuning it, and why a `satl run -p` container can
+never be gated at all, are on one page rather than half on each:
+[Publishing a port tightens the
+defaults](healthchecks.md#publishing-a-port-tightens-the-defaults).
+
 ## Two tasks of one service on one node
 
 They share one rule, with a pf address pool:

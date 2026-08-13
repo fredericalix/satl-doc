@@ -158,23 +158,28 @@ differs.
 `zfs list -r zroot/satl/layers` is an honest picture of what images cost on a
 node, including the sharing.
 
-## Disk use grows without bound
+## Nothing reclaims a layer until you ask { #reclaiming }
 
-!!! danger "There is no prune and no layer garbage collection"
+!!! warning "Reclamation is manual, and it is per node"
 
-    Nothing removes an image you stopped using, and nothing removes the layer
-    datasets underneath it. There is no `satl system prune`, no
-    `satl image prune`, no `satl rmi`, and no background collector. **A node
-    that pulls new tags for long enough will fill its pool**, and the first
-    symptom is `satld` failing to clone a rootfs for a container that was
-    scheduled onto it.
+    `satl system prune` removes unreferenced image content and unreferenced layer
+    datasets. Nothing runs it for you: there is no background collector and no
+    timer, so **a node that pulls new tags for long enough and is never pruned
+    will fill its pool** — and the first symptom is `satld` failing to clone a
+    rootfs for a container that was just scheduled onto it.
 
-    Watch it, because nothing else will:
+    It also reclaims **one node**: images and layers live on the node that pulled
+    them, so a prune answered by one manager leaves every other node exactly as it
+    was.
 
     ```sh
-    zfs list -r zroot/satl
+    satl system prune                                        # this node
+    for n in alpha beta gamma; do ssh "$n" satl system prune -f; done
     zfs list -o name,used -s used -r zroot/satl/layers | tail
     ```
+
+    [Reclaiming space](reclaiming-space.md) is the page for it — including why a
+    layer sometimes survives the first prune and goes on the second.
 
 !!! failure "Do not hand-delete datasets under the ZFS root"
 
@@ -184,14 +189,11 @@ node, including the sharing.
     container created from it fails at clone time with a missing-snapshot error
     that names a dataset you deleted by hand.
 
-    The container datasets are the one exception, and even there the daemon does
-    it for you — see [the periodic dataset
+    `satl system prune` is the supported path precisely because it removes the
+    record and the dataset together, and declines when something still holds a
+    clone. Container datasets are reclaimed without being asked, by [the periodic
+    dataset
     sweep](../config/state.md#the-container-dataset-that-outlives-its-container).
-
-    Until layer GC exists, the supported way to reclaim an image's space is to
-    reclaim the node: destroy `zroot/satl/layers` and `zroot/satl/images`
-    wholesale with `satld` stopped and no containers running, and let the node
-    pull again.
 
 ## What `satl images` does not do
 

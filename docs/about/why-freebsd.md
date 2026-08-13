@@ -136,6 +136,10 @@ REPOSITORY                               TAG      IMAGE ID       CREATED        
 127.0.0.1:5000/satl-test/freebsd-nginx   latest   af645a19660d   56 years ago   15.63MB   freebsd/amd64
 ```
 
+("56 years ago" is not a property of these two images. The daemon records no
+creation timestamp, so [every image reads as the
+epoch](../use/images.md#references); `SIZE` and `PLATFORM` are real.)
+
 It needs `linux.ko` loaded and brings its own limits: an image that expects
 cgroups, or that runs `systemd` as its entrypoint, is rejected with a clear
 error rather than started half-way. In practice a musl or glibc userland that

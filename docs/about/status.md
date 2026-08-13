@@ -48,7 +48,11 @@ continuously, so editing a label moves running tasks.
 **Healthchecks**, with Docker's semantics, and one deliberate difference: a
 task with a healthcheck is not reported `RUNNING` until a probe passes, and a
 task that goes unhealthy is stopped and replaced rather than left running. That
-gate is what makes a zero-downtime rolling update possible at all.
+gate is what makes a zero-downtime rolling update possible at all. A service that
+publishes a port gets [tighter probe
+defaults](../use/healthchecks.md#publishing-a-port-tightens-the-defaults) —
+about 10 s to leave the traffic pool instead of about 90 — because pf never probes
+what it redirects to.
 
 **Secrets and configs.** Encrypted at rest in the Raft store, delivered into a
 per-task tmpfs and never written to a worker's disk, reference-counted over the
@@ -60,16 +64,32 @@ TLS configuration without a restart. `satl ca rotate` replaces the cluster root
 CA on a live cluster with no downtime — services keep serving, sessions stay
 up, writes keep committing throughout.
 
+**Compose files**, with stack semantics: `satl compose up` deploys one *service*
+per compose service on a shared overlay, scheduled across the cluster, and refuses
+anything outside the supported subset instead of ignoring it. See
+[Compose files](../use/compose.md).
+
+**Disk reclamation.** `satl system prune` removes stopped containers, unused
+networks, unreferenced image content and unreferenced layer datasets. It is
+manual, and node-local for everything that costs disk — see [Reclaiming
+space](../use/reclaiming-space.md).
+
+**Backup and restore of cluster state**, with a measured procedure: a manager's
+raft directory is its own ZFS dataset, a snapshot of it restores onto that node in
+seconds, and on a cluster that still has quorum a lost manager is rejoined in about
+six seconds with no backup at all. Read [Backup and
+restore](../cluster/backup-restore.md) before you deploy anything you care about —
+in particular the part about how many managers to run.
+
 ## What is not built
 
 | Missing | What it means for you |
 | --- | --- |
-| **`satl compose`** | There is no way to declare a multi-service stack in a file. Every service is created with a `satl service create` command. |
 | **`satl build`** | SatL runs images; it cannot make one. You need another machine, another tool, or the scripted path in [First container](../start/first-container.md#3-get-an-image-that-serves-something). |
-| **`satl system prune` and layer GC** | Nothing reclaims image layers or content automatically. A registry you pulled from twice leaves both sets of datasets under `zroot/satl/layers` until you `zfs destroy` them by hand. On a long-lived node this grows without bound. |
+| **Automatic or cluster-wide reclamation** | `satl system prune` exists, but nothing runs it for you and one run reclaims one node's images, layers and volumes. A node never pruned still fills its pool. |
+| **Recovery from a lost quorum** | A cluster whose majority of managers is gone for good cannot be repaired from inside — there is no `ForceNewCluster` — and the only way back is restoring a majority from their own backups. |
 | **Packages** | No FreeBSD port, no `pkg install satl`. Build from source on the host that will run it. |
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
-| **Backup and restore** | The manager state directory is documented, and the encryption key that makes it readable is documented, but no restore procedure has been written or tested. Treat a SatL cluster as reproducible, not recoverable. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
 | **A routing mesh** | See above: published ports answer only on nodes running a replica. |
 | **Metrics** | No Prometheus endpoint. The log is the observability surface. |
@@ -82,6 +102,15 @@ scope — and why — in the [reference](../reference/out-of-scope.md).
 
 These are known, small, and none of them has a workaround worth hiding.
 
+- **A service on a private registry cannot pull where the image is absent.** The
+  registry credential is honoured for a direct `satl pull` and **dropped** on
+  service create, so a node that has to fetch the image itself fetches it
+  anonymously. Pre-pull on every node that may run the service, or use a registry
+  the nodes can read unauthenticated. See
+  [Images](../use/images.md#authentication).
+- **`satl images` reports every image as created at the epoch**, so its `CREATED`
+  column reads "56 years ago" for everything. The daemon does not record the image
+  config's timestamp. `SIZE` and `PLATFORM` are real.
 - **A stopped container keeps its jail until it is removed.** Docker keeps a
   stopped container's filesystem but not a live namespace; SatL leaves an empty
   jail (zero processes) and its epair in place. Three containers that exited two

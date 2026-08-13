@@ -50,7 +50,7 @@ was three verbs behind — which is why `make gen` refuses to run before
 
 ## The generated CLI reference
 
-`docs/reference/cli/` (22 pages) and `docs/reference/satld.toml.sample` are
+`docs/reference/cli/` (24 pages) and `docs/reference/satld.toml.sample` are
 **generated and committed**. Committed, because the site must build with no
 SatL checkout, no Rust toolchain and no FreeBSD. Safe to commit, because
 `make check-gen` regenerates into a scratch directory and diffs — a hand-edit

@@ -120,6 +120,7 @@ zroot/satl/volumes               96K   683G    96K  /var/db/satl/volumes
 Container datasets are reclaimed automatically, sometimes [about a minute after
 the container
 goes](../config/state.md#the-container-dataset-that-outlives-its-container).
-Volumes are reclaimed when you say so. **Image layers are never reclaimed** —
-see [Images](images.md#disk-use-grows-without-bound), because on a busy node
-that is the number that grows.
+Volumes are reclaimed when you say so — or by `satl system prune --volumes`, which
+takes every volume no task mounts. **Image layers are reclaimed only when you ask,
+and only on the node you ask**: see [Reclaiming space](reclaiming-space.md),
+because on a busy node that is the number that grows.

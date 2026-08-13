@@ -215,40 +215,45 @@ If a dataset is still there minutes later, that is a different problem: check
 whether its prison ever died (`jls -d -h name dying | grep <task id>`) and how
 many vnodes the mount still holds (`mount -v | grep <task id>`).
 
-!!! warning "There is no image or layer garbage collection"
+!!! warning "Images and layers are reclaimed only when you ask"
 
     Container datasets are reclaimed as described above. **Image blobs and layer
-    datasets are not.** Nothing prunes them, and there is no `satl system prune`.
-    See [Images](../use/images.md#disk-use-grows-without-bound) before you let a
-    node pull for a long time.
+    datasets are not**, until `satl system prune` is run — and it reclaims the
+    node that answered it, not the cluster. See [Reclaiming
+    space](../use/reclaiming-space.md) before you let a node pull for a long time.
 
 ---
 
-!!! abstract "Backup: what is known, and what is not a procedure"
+## Backing this directory up
 
-    **There is no tested backup or restore procedure for SatL, and this page
-    will not invent one.** What follows is the set of facts an operator would
-    need in order to design one; treat anything beyond them as untested.
+Of everything above, **`raft/` is the only part worth a backup**, and only on a
+manager. It holds the entirety of the desired state — services, tasks, networks,
+nodes, secrets, configs, allocations — and the cluster's root CA. Everything else
+in the state directory is node-local and rebuildable: images come back by pulling,
+containers by rescheduling, `certs/` by being re-issued from the CA inside `raft/`
+itself.
 
-    - **Cluster state lives in `<state_dir>/raft`** — on managers only. That is
-      the entirety of the desired state: services, tasks, networks, nodes,
-      secrets, configs, allocations. Nothing else in the state directory is
-      cluster state; it is all node-local and rebuildable.
-    - **`raft/dek` encrypts that state at rest and must be in any copy of it.**
-      A backup of `raft/` without `dek` restores nothing. A backup with it is as
-      sensitive as the manager's disk (see above).
-    - **A multi-manager cluster re-syncs a lost node from its peers.** A manager
-      that loses its `raft/` directory can be removed and rejoined; the
-      surviving managers hold the state and replicate it back. This is the
-      redundancy that actually exists today.
-    - **A single-node cluster cannot re-sync from anything.** If its `raft/` or
-      its `dek` is lost, the cluster's state is lost with it. Running a second
-      and third manager is, today, the only working answer to that.
-    - `certs/` is re-issuable — a node that rejoins is issued a new
-      certificate — so it is not what a backup is for. `raft/` is.
+Three facts decide how you copy it, and the [full
+procedure](../cluster/backup-restore.md) is measured rather than reasoned:
 
-    What is *not* established: whether a copy of `raft/` taken while the daemon
-    is running is restorable at all, what the correct order of operations for a
-    restore would be, and how a restored manager should be reintroduced to a
-    cluster that has moved on. Those are the questions a backup procedure has to
-    answer, and none of them has been answered by a test yet.
+- **`raft/` is its own ZFS dataset**, so a snapshot of it is atomic and
+  crash-consistent — which is exactly the image the log's storage engine recovers
+  from. `zfs snapshot zroot/satl/raft@backup`, then read the files out of
+  `.zfs/snapshot/backup/`. A `cp -Rp` of the live directory smears across the copy
+  window instead, and a torn copy has been observed to start and run *anyway*, so
+  "it started" proves nothing.
+- **`dek` must be in the copy.** Without it the restored log is unreadable, and
+  `satld` refuses to start rather than minting a new key over sealed data — which
+  would make the state unreadable for good. The key is per node: another manager's
+  `dek` does not open this one's state.
+- **On a cluster that still has quorum, you may not need the backup at all.** A
+  manager that lost its state is rejoined in about six seconds, and the surviving
+  managers replicate everything back. The backup is for the day the *majority*
+  goes, which is the one situation nothing inside the cluster can fix.
+
+!!! tip "Read the procedure before you write the cron job"
+
+    [Backup and restore](../cluster/backup-restore.md) covers taking the copy,
+    restoring onto the same node, what the log says when a restore took, the
+    refusals that protect you from a bad one, and the arithmetic that says how many
+    managers to run and how many of them to copy.

@@ -35,12 +35,13 @@ zroot/satl/volumes                                       96K   683G    96K  /var
   cluster state is unreadable.
 - **`volumes/`** — one dataset per named volume.
 
-!!! warning "Nothing reclaims layers"
+!!! warning "Nothing reclaims layers on its own"
 
-    There is no `satl system prune` and no layer garbage collection. Pulling ten
-    tags of an image leaves ten sets of layer datasets, forever, until you
-    `zfs destroy` them yourself. This is the most likely way a long-lived SatL
-    host fills its pool.
+    Pulling ten tags of an image leaves ten sets of layer datasets, and they stay
+    until you run `satl system prune`. There is no timer and no background
+    collector, so a long-lived host that is never pruned fills its pool — and the
+    prune reclaims *that node*, not the cluster. See [Reclaiming
+    space](../use/reclaiming-space.md).
 
 ## Interfaces
 
@@ -106,7 +107,8 @@ API and the log all print.
 !!! note "A stopped container keeps its jail"
 
     Containers that have exited still appear in `jls`, holding an empty jail
-    (zero processes) and its epair, until you `satl rm` them. Docker keeps a
+    (zero processes) and its epair, until you `satl rm` them — or until
+    `satl system prune` does, which is what it is for. Docker keeps a
     stopped container's filesystem but not a live namespace. This is a known
     rough edge, not a leak: the reconciliation pass accounts for these, and
     removal destroys them.
@@ -174,11 +176,12 @@ stay up.
 Three directions, and they are genuinely independent.
 
 - **Use it properly on one machine** — services rather than `satl run`,
-  volumes, networks, healthchecks, secrets, and what each of the CLI verbs
-  actually does: [Using SatL](../use/index.md).
+  volumes, networks, healthchecks, secrets, compose files, and what each of the
+  CLI verbs actually does: [Using SatL](../use/index.md).
 - **Add machines** — join tokens, managers and workers, quorum arithmetic,
   overlay networks and what published ports mean across a cluster:
-  [Clustering](../cluster/index.md).
+  [Clustering](../cluster/index.md), and [Backup and
+  restore](../cluster/backup-restore.md) for how many managers to run and why.
 - **Tune the daemon** — all thirteen `satld.toml` keys, the pf modes, addresses
   and pools: [Configuration](../config/index.md), and the
   [`satld.toml` reference](../reference/satld-toml.md).

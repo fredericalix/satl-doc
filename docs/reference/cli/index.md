@@ -25,9 +25,11 @@ $ satl [OPTIONS] <COMMAND>
 | [`satl images`](images.md) | List images |
 | [`satl volume`](volume.md) | Manage volumes |
 | [`satl network`](network.md) | Manage networks |
+| [`satl system`](system.md) | Manage SatL itself |
 | [`satl swarm`](swarm.md) | Manage the swarm. `satl cluster` is an accepted alias: the docker verb is kept for compatibility, the alias reads better in SatL's own docs<br>Alias: <code>cluster</code> |
 | [`satl ca`](ca.md) | View and rotate the cluster root CA (docker's `swarm ca`, as its own verb: certificate operations deserve better than a flag pile) |
 | [`satl node`](node.md) | Manage swarm nodes |
+| [`satl compose`](compose.md) | Deploy a Compose file as cluster services (stack semantics, not `docker compose`'s). |
 | [`satl service`](service.md) | Manage services |
 | [`satl secret`](secret.md) | Manage secrets |
 | [`satl config`](config.md) | Manage configs |

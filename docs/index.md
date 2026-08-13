@@ -51,8 +51,10 @@ surface is Docker's — the `satl` CLI speaks the verbs you already know, and
 ## Status
 
 SatL is **pre-1.0 and pre-release**. There are no tagged releases, no FreeBSD
-package, no upgrade path between versions and no tested backup/restore
-procedure. The only way to install it is to build it from source on the machine
-that will run it. Everything documented here has been run on FreeBSD 15.1
-amd64; nothing here is documented from intent. What is missing is listed, by
-name, on the [status page](about/status.md).
+package and no upgrade path between versions. The only way to install it is to
+build it from source on the machine that will run it. Cluster state has a
+[measured backup and restore procedure](cluster/backup-restore.md), but no `satl`
+verb performs it and a cluster that permanently loses quorum cannot be repaired
+from inside. Everything documented here has been run on FreeBSD 15.1 amd64;
+nothing here is documented from intent. What is missing is listed, by name, on the
+[status page](about/status.md).

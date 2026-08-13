@@ -37,6 +37,12 @@ Everything below is organised by what you are trying to do.
   config file before the first start**. Otherwise the node advertises the
   interface carrying its default route, which on a cloud instance is usually the
   public NIC rather than the private underlay you meant.
+- **`swarm init --force-new-cluster` answers `501`, permanently.** Docker rebuilds
+  a swarm from one surviving manager's state by discarding the other members. Here a
+  manager that still has its raft directory resumes on a plain restart, and one that
+  has lost it has nothing to force from — so the recovery is a
+  [restore or a rejoin](cluster/backup-restore.md), and a cluster that has
+  permanently lost quorum cannot be repaired from inside.
 - Join tokens are spelled `SATL-1-<digest>-<secret>`. Tooling that
   pattern-matches Docker's `SWMTKN` will not recognise them.
 - The internal protocol binds **two** ports, `2377` and `2378`, where Docker
@@ -176,6 +182,18 @@ Everything below is organised by what you are trying to do.
   container running, and its `--restart` never reacts to health at all.
   Consequence: a container that never becomes healthy *fails* rather than
   staying `starting` forever. `start_period` is the only grace.
+- **A service that publishes a port gets tighter defaults**, and only there: 5 s
+  interval, 3 s timeout and 2 retries instead of Docker's 30/30/3, applied field by
+  field and only where you left the field unset. Docker applies its defaults
+  identically whatever the service publishes, and *at probe time*; SatL writes the
+  effective values into the stored spec, so `inspect` shows the numbers the prober
+  will use — and they then look explicit, so removing the published port later does
+  not restore 30 s. What that buys is ~10 s out of the traffic pool instead of ~90;
+  what it costs is that here, leaving the pool and being killed are the same event.
+- **A published service with no healthcheck at all is a warning** at create and
+  update, in the `Warnings` array and in the log. Docker warns about nothing here.
+  `satl run -p` is deliberately *not* warned — the container API reads no
+  healthcheck at all, so there would be no way to comply.
 - **The image's own `HEALTHCHECK` is not inherited.** Only the healthcheck in the
   spec is honoured, and Docker's "inherit from the image" marker means "no
   healthcheck" here.
@@ -239,6 +257,54 @@ Everything below is organised by what you are trying to do.
 - Secret drivers and templating are `400`s: there are no plugins and no template
   engine, and a config whose placeholders were never expanded is a broken file
   delivered as a correct one.
+
+## You bring a Compose file
+
+- **`satl compose up` is `docker stack deploy`, not `docker compose up`.** It
+  creates one *service* per compose service, on an overlay network of the
+  project's own, scheduled across the cluster — because there are no standalone
+  containers to make. `deploy:` is honoured rather than ignored, service objects
+  are named `<project>_<service>`, and the replica count comes from
+  `deploy.replicas`.
+- **Hostnames still work**: every attachment carries the bare compose service name
+  as a DNS alias, so `redis:6379` inside the file reaches `shop_redis`'s tasks.
+- **Unsupported keys are refused, not ignored.** `docker stack deploy` prints
+  `Ignoring unsupported options: …` and carries on; here `build:`, `container_name:`,
+  `scale:`, `privileged:` and about forty more each fail with the file, the key and
+  the reason named, before anything is created.
+- **No interpolation and no merging**: `${TAG}` is refused rather than passed
+  through, and there is one `-f` with no override file, no `include:` and no
+  `extends:`.
+- **`down` is scoped by the project label, not by name**, so it cannot remove an
+  object it did not create, and it needs no compose file — `satl compose down -p
+  shop` is enough. `-v/--volumes` is refused: volumes are node-local and their
+  labels are not persisted.
+- **Secrets and configs must be `external: true`.** A `file:` declaration is
+  refused, because a secret is immutable and a second `up` would silently keep the
+  old payload.
+- Absent: `build`, `pull`, `run`, `exec`, `logs`, `restart`, `stop`/`start`, `top`,
+  `events`, `--wait`, `--profile`. `up` is always detached.
+
+The whole subset, and each refusal, is on [Compose files](use/compose.md).
+
+## You prune
+
+- **`satl system prune` is the only prune verb** — no `container`, `image`,
+  `network` or `volume` prune — though all four REST endpoints exist and behave as
+  Docker's.
+- **Containers and networks are cluster-wide; images, layers, blobs and volumes are
+  reclaimed on the answering node only.** Docker has no cluster to be wrong about;
+  here the prompt and the summary both name the node, and reclaiming a cluster means
+  running it everywhere.
+- **Pruning a stopped container removes the service backing it**, for the same
+  reason `docker rm` does here. The rail is at the service: it is pruned only when
+  *every* container of it is stopped.
+- **A layer needs two agreeing passes**, 1.5 s apart within the one request, and
+  what the second pass disagreed about is reported rather than silently skipped.
+  Docker destroys on one reading; SatL has a cluster store, a worker and an image
+  store that are each momentarily incomplete at different times.
+- **`--filter` is absent and an unknown filter is a `400`.** `until=` and `label=`
+  change what gets deleted, so ignoring them would delete more than you asked for.
 
 ## You run something on a worker
 
@@ -308,12 +374,12 @@ Answered as `404 page not found` rather than half-implemented: `attach`,
 `commit`, `export`, `rename`, `restart`, `pause`/`unpause`, `update`, `top`,
 `stats`, `changes`, `archive`, `build`.
 
-Beyond the API: no `satl compose`, no `prune` of any kind, no image or layer
-garbage collection, no metrics endpoint, no IPv6, no overlay data-plane
-encryption, and no full routing mesh. Those and their consequences are on their
-own page — [What SatL does not do](reference/out-of-scope.md) — because several
-of them have operational costs you should know about before you run SatL for
-long.
+Beyond the API: no image build, no metrics endpoint, no IPv6, no overlay
+data-plane encryption, no full routing mesh, no automatic or cluster-wide
+reclamation, and no way to repair a cluster that has permanently lost quorum.
+Those and their consequences are on their own page — [What SatL does not
+do](reference/out-of-scope.md) — because several of them have operational costs
+you should know about before you run SatL for long.
 
 ---
 

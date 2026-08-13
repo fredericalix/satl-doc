@@ -173,7 +173,11 @@ nav:
       - Resource limits: use/resource-limits.md
       - Healthchecks: use/healthchecks.md
       - Rolling updates: use/rolling-updates.md
-  - Clustering: cluster/index.md
+      - Compose files: use/compose.md
+      - Reclaiming space: use/reclaiming-space.md
+  - Clustering:
+      - cluster/index.md
+      - Backup and restore: cluster/backup-restore.md
   - Images: images/index.md
   - Troubleshooting:
       - trouble/index.md
@@ -207,9 +211,11 @@ nav:
           - satl images: reference/cli/images.md
           - satl volume: reference/cli/volume.md
           - satl network: reference/cli/network.md
+          - satl system: reference/cli/system.md
           - satl swarm: reference/cli/swarm.md
           - satl ca: reference/cli/ca.md
           - satl node: reference/cli/node.md
+          - satl compose: reference/cli/compose.md
           - satl service: reference/cli/service.md
           - satl secret: reference/cli/secret.md
           - satl config: reference/cli/config.md

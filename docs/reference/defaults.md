@@ -95,9 +95,10 @@ Every one of the last five is a key in [`satld.toml`](satld-toml.md).
 
 Worth stating explicitly, because their absence surprises people:
 
-- **there is no image or layer garbage collection**, so disk use under
-  `<zfs_root>/layers` and `<zfs_root>/images` grows without bound. See
-  [What SatL does not do](out-of-scope.md);
+- **nothing collects images or layers on a timer**, so disk use under
+  `<zfs_root>/layers` and `<zfs_root>/images` grows until you run
+  `satl system prune` — per node, since that is the scope it reclaims. See
+  [Reclaiming space](../use/reclaiming-space.md);
 - **there is no rebalancer**, so tasks moved off a node by a drain stay where
   they were re-placed;
 - **there is no per-node endpoint limit on an overlay network** worth planning
