@@ -99,7 +99,15 @@ markdown_extensions:
       permalink: true
       permalink_title: Link to this section
   - pymdownx.details
-  - pymdownx.superfences
+  # custom_fences is what makes a ```mermaid block render as a diagram rather
+  # than as literal text. Without this stanza superfences still loads and
+  # nothing warns -- the block just renders as a code listing, which is a
+  # failure you only find by looking at the built page.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -136,8 +144,18 @@ not_in_nav: |
 
 nav:
   - Home: index.md
-  - About: about/index.md
-  - Getting started: start/index.md
+  - About:
+      - about/index.md
+      - What SatL is: about/what-satl-is.md
+      - Why FreeBSD: about/why-freebsd.md
+      - How it works: about/how-it-works.md
+      - Project status: about/status.md
+  - Getting started:
+      - start/index.md
+      - Requirements: start/requirements.md
+      - Install: start/install.md
+      - Your first container: start/first-container.md
+      - What just happened: start/what-happened.md
   - Configuration: config/index.md
   - Using SatL: use/index.md
   - Clustering: cluster/index.md
