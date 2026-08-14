@@ -94,27 +94,34 @@ you rely on it:
 - there is nothing to fail over *to* at the address level, because there is no
   address that outlives a task.
 
-### No network namespace to hang a routing mesh in — ingress-lite
+### No network namespace to hang a routing mesh in — so the mesh is pf
 
 Docker's routing mesh works because every node can accept a connection on a
 published port in a dedicated ingress namespace and forward it, internally, to
-a task on some other node. SatL publishes ports with `pf rdr`, on the node
-itself, and there is no second hop.
+a task on some other node. FreeBSD jails have no per-namespace iptables to
+build that with — so SatL's mesh is expressed in pf, on the node itself.
 
-So `--publish 8080:80` in SatL means: the port is allocated once, cluster-wide,
-exactly as SwarmKit allocates it — and it is then redirected **on each node that
-runs a task of the service, to that node's own task**. A node that runs no task
-of the service does not answer on the port at all.
+`--publish 8080:80` in SatL means: the port is allocated once, cluster-wide,
+exactly as SwarmKit allocates it — and **every manager answers on it**. A
+manager that runs no task of the service redirects the connection to a task's
+*overlay* address on another node, with return-path SNAT so the reply comes
+back through the relay. Round-robin across the live tasks is a pf table the
+daemon keeps current; a task that dies leaves the pool within seconds.
 
-!!! warning "Two operational consequences"
+Two properties fall out of building it this way, and both are measured facts
+rather than aspirations:
 
-    A load balancer in front of a SatL cluster must **health-check the port**
-    rather than assume every node serves it: a node with no replica is not a
-    degraded backend, it is a correct one. And a service scaled to fewer
-    replicas than there are nodes is genuinely not reachable everywhere.
-
-    There is one upside: with no second hop, the source address a container
-    sees is the real client's.
+- **A relayed connection loses the client address** — the SNAT that makes the
+  return path work is also what hides the client. Docker's mesh makes the same
+  trade. The remedy is opt-in: a service labelled
+  `satl.publish.proxy_protocol=v2` is published through `satld`'s userspace
+  proxy instead of pf, and the task sees the real address in a PROXY v2
+  header. See [Publishing ports](../use/publishing-ports.md#the-client-address).
+- **The mesh is managers-only.** A worker holds no store replica to compute
+  the cluster-wide pool from, so a worker answers a published port only when
+  it runs a task of the service itself — the pre-mesh behaviour. On an
+  all-manager cluster the distinction is invisible; on a cluster with workers
+  it is the one thing to know.
 
 ## Linux images, under the linuxulator
 

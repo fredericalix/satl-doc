@@ -56,6 +56,14 @@ Everything below is organised by what you are trying to do.
   and never started.
 - **`docker rm` removes the backing service too.** Otherwise the orchestrator
   would immediately refill the slot with a fresh task.
+- **`docker kill` on a service task retires the slot; nothing replaces it.**
+  Docker's kill signals the container and the orchestrator brings the service
+  back to N/N. Here kill maps onto a graceful shutdown that writes the
+  intentional-stop state, which the restart supervisor honours as "do not
+  replace" — the service sits at 0/N until you scale away and back or push any
+  update. To rehearse a crash rather than a retirement, kill the jail on the
+  host (`jail -r <task id>`): the agent reports a terminal task and the
+  supervisor replaces it.
 - **`docker stop -t` is ignored** — the grace period lives in the task spec,
   which is immutable after creation — and `docker kill --signal` is not
   forwarded: `kill` maps onto a graceful shutdown honouring the task's stop
@@ -69,6 +77,11 @@ Everything below is organised by what you are trying to do.
   resolve to" is a question you ask constantly.
 - `paused` and `restarting` never occur. `Paused`, `Restarting` and `OOMKilled`
   are always false.
+- **Jail knobs are labels, not flags.** `satl.jail.<param>=<value>` on a
+  container (`--label`, or compose `labels:`) passes any jail parameter ocijail
+  understands through as an OCI annotation. The one you will meet first is SysV
+  IPC, disabled in jails by default: PostgreSQL needs
+  `satl.jail.sysvshm=new` and `satl.jail.sysvsem=new` to even `initdb`.
 - There is **no TTY**: `-t` is a clear error rather than a half-started
   container, and `exec` reads and discards stdin and delivers its output when
   the process exits rather than streaming it live. `satl wait` exits with the
@@ -76,20 +89,23 @@ Everything below is organised by what you are trying to do.
 
 ## You publish a port
 
-- **`ingress` publishing is not a routing mesh.** The port is allocated
-  cluster-wide, exactly as SwarmKit allocates it, and then redirected **on each
-  node that runs a task of the service, to that node's own task**. A node running
-  no replica does not answer on the port at all.
-- Consequence: **a load balancer in front of the cluster must health-check the
-  port**, not assume every node serves it. A node with no replica is not a
-  degraded backend; it is a correct one. A service scaled to fewer replicas than
-  there are nodes is not reachable everywhere.
-- Consequence: there is no second hop, so **the source address a container sees
-  is the real client's**.
+- **Ingress publishing is a routing mesh, managers only.** The port is
+  allocated cluster-wide, exactly as SwarmKit allocates it, and **every manager
+  answers on it**: pf redirects to a live task's overlay address, on the node
+  or across it, round-robin through a table the daemon keeps current. A
+  *worker* answers only when it runs a task of the service — it holds no store
+  replica to compute the cluster-wide pool from.
+- Consequence: **a relayed connection loses the client address** to the
+  return-path SNAT, as Docker's mesh does. A connection landing on a hosting
+  node keeps it. The remedy is opt-in: the service label
+  `satl.publish.proxy_protocol=v2` moves the port off pf and onto `satld`'s
+  userspace proxy, which writes a PROXY v2 header — the task sees the real
+  client. See [Publishing ports](use/publishing-ports.md#the-client-address).
 - **A published port is not reachable from the publishing host via
   `localhost`.** pf applies `rdr` to packets *entering* an interface, never to
-  locally generated traffic; Docker on Linux papers over this with an iptables
-  `OUTPUT` rule and there is no equivalent here.
+  locally generated traffic — and that includes the node's own external
+  address, so test from another machine. Docker on Linux papers over this with
+  an iptables `OUTPUT` rule and there is no equivalent here.
 - Publishing requires `pf_mode = "enforce"` in `satld.toml` **and** pf enabled on
   the host. With the default `check`, ports are allocated and displayed and no
   redirect is installed.
@@ -150,6 +166,13 @@ Everything below is organised by what you are trying to do.
 
 ## You set resource limits
 
+- **A resources-only `service update` is a hot resize, not a roll.**
+  `--limit-memory`/`--limit-cpu`/`--reserve-*` on an existing service rewrite
+  the live jails' rctl rules in place; the tasks are not replaced. Docker
+  Swarm rolls on any spec change and puts per-container resizing in
+  `docker update`, which SatL does not have (no standalone containers). A
+  memory shrink below current usage arms a `sigkill` rule under the watermark
+  — the agent warns loudly, so check `rctl -h jail:<id>` first.
 - `--memory` becomes an `rctl(8)` rule that **kills** the process when the jail's
   resident set exceeds the cap. `--cpus` becomes a `pcpu` rule that **throttles**
   toward the cap on a decaying average, so the cap is approached rather than
@@ -372,10 +395,11 @@ replacement.
 
 Answered as `404 page not found` rather than half-implemented: `attach`,
 `commit`, `export`, `rename`, `restart`, `pause`/`unpause`, `update`, `top`,
-`stats`, `changes`, `archive`, `build`.
+`stats`, `changes`, `archive`, and `build` — SatL builds images client-side
+with [`satl build`](use/images.md#satl-build), not in the daemon.
 
-Beyond the API: no image build, no metrics endpoint, no IPv6, no overlay
-data-plane encryption, no full routing mesh, no automatic or cluster-wide
+Beyond the API: no daemon-side image build, no IPv6, no overlay
+data-plane encryption, no automatic or cluster-wide
 reclamation, and no way to repair a cluster that has permanently lost quorum.
 Those and their consequences are on their own page — [What SatL does not
 do](reference/out-of-scope.md) — because several of them have operational costs

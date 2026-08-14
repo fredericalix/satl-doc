@@ -17,6 +17,7 @@ $ satld [OPTIONS]
 | <code>--log-format &lt;FORMAT&gt;</code> | Log output format<br>Values: <code>text</code> — Human-readable text lines; <code>json</code> — One JSON object per line<br>Default: <code>text</code> |
 | <code>--log-target &lt;TARGET&gt;</code> | Where log lines go. `syslog` sends one datagram per event to the local syslogd and is what the rc.d service uses; `stdout` is for running the daemon in the foreground<br>Values: <code>stdout</code> — This process's standard output — a terminal in the foreground, and whatever the shell redirected it to otherwise; <code>syslog</code> — The local `syslogd`, one datagram per event<br>Default: <code>stdout</code> |
 | <code>--log-level &lt;LEVEL&gt;</code> | Log level filter (the `RUST_LOG` environment variable wins when set)<br>Default: <code>info</code> |
+| <code>--metrics-addr &lt;ADDR&gt;</code> | Address the Prometheus `/metrics` endpoint binds (overrides `metrics_addr` in the config file; the endpoint is off when neither is set). Unauthenticated, like dockerd's — bind a private address |
 | <code>-h, --help</code> | Print help (see a summary with '-h') |
 | <code>-V, --version</code> | Print version |
 

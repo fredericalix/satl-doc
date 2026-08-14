@@ -125,6 +125,35 @@ removed.
     it would need something like an `LD_PRELOAD` shim rewriting those files
     per-jail, which SatL does not do.
 
+## Resizing a live service { #resizing-a-live-service }
+
+```sh
+satl service update --limit-memory 1g web
+```
+
+A `service update` whose only change is resources — limits, reservations, or
+both — **does not roll the tasks**. The new values are pushed into the live
+task objects and each node's agent rewrites the jail's rctl rules in place:
+the same containers keep serving, with no restart and no gap. For a database,
+that is the difference between a resize and an incident.
+
+`satl service update` takes `--limit-cpu`, `--limit-memory`, `--reserve-cpu`
+and `--reserve-memory`; passing `0` clears that dimension. Any other change in
+the same update — an image, an env var, a label — takes the ordinary rolling
+path, and the replacement tasks carry the new resources whole.
+
+Two things to know:
+
+- **A memory shrink below current usage is a kill waiting to happen.** The
+  `memoryuse:sigkill` rule does not evict what is already allocated — it kills
+  on the *next* allocation past the cap — so a jail using 160 MB that is
+  capped at 100 MB survives until it grows, then dies in a way that looks like
+  a crash. The daemon cannot see node-local usage when you write the spec, so
+  it cannot refuse; the node's agent logs a loud warning naming the watermark
+  when it arms such a rule. Check first with `rctl -h jail:<container id>`.
+- **Reservations change nothing for running tasks.** They are the scheduler's
+  input for future placements; only limits touch rctl.
+
 ## What is refused rather than half-honoured
 
 Docker's other resource knobs are rejected with a 400, never accepted and

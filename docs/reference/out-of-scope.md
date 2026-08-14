@@ -77,17 +77,21 @@ What is deliberately not there:
   named. Docker's own `stack deploy` prints `Ignoring unsupported options: …` and
   carries on; a 200-line file that half-deployed is what this refuses.
 
-## No `satl build` { #no-build }
+## No daemon-side image build { #no-build }
 
-There is no image build, no BuildKit, no `Dockerfile` support, and no
-`/build` endpoint — it answers `404`. `/_ping` carries no `Builder-Version`
-header for the same reason.
+`satl build` exists and builds FreeBSD images from a `Satlfile` — see
+[Images](../use/images.md#satl-build) — but it runs **client-side, on the
+node's host**, not in the daemon. There is no BuildKit, no `Dockerfile`
+support, and no `/build` endpoint — it answers `404`. `/_ping` carries no
+`Builder-Version` header for the same reason. There is no `COPY` in a
+Satlfile and no build context: an image is a base userland plus packages, and
+it lands in the local node's store only.
 
-**What to do instead.** Build elsewhere and push to a registry SatL can pull
-from. On FreeBSD, `skopeo` copies images between registries and preserves
-multi-platform indexes byte for byte, which matters because platform selection
-is exactly what those indexes are for. Note that SatL refuses a plain-HTTP
-registry unless it is loopback.
+**What to do for anything else.** Build elsewhere and push to a registry SatL
+can pull from. On FreeBSD, `skopeo` copies images between registries and
+preserves multi-platform indexes byte for byte, which matters because platform
+selection is exactly what those indexes are for. Note that SatL refuses a
+plain-HTTP registry unless it is loopback.
 
 ## No packages, no binary releases, no `satl` group { #no-packages }
 
@@ -141,16 +145,18 @@ is rejoined in about six seconds, no backup involved — and the backup is for t
 day two of them go at once. Two managers are strictly worse than one: quorum is 2,
 so losing either stops every write and leaves the survivor unrecoverable.
 
-## No routing mesh { #no-mesh }
+## The routing mesh is managers-only { #no-mesh }
 
-`PublishMode: ingress` publishes without Docker's routing mesh: the port is
-allocated cluster-wide and redirected **only on nodes that run a task of the
-service**. A node with no replica does not answer.
+`PublishMode: ingress` is a real routing mesh — every manager answers on the
+port and pf relays to a live task wherever it runs — **but only managers do**.
+A worker holds no store replica to compute the cluster-wide pool from, so it
+answers a published port only when it runs a task of the service itself.
 
-**What to do instead.** Put a load balancer in front of the cluster and give it
-a **health check on the port**. A node with no replica is a correct backend that
-is currently down for that service, not a degraded one. The upside is that there
-is no second hop, so your services see the real client address.
+Two consequences to plan around: point any front-end load balancer at the
+managers (or health-check the port, if workers must be backends), and expect a
+relayed connection to carry the relay's address, not the client's — the
+[`satl.publish.proxy_protocol=v2`](../use/publishing-ports.md#the-client-address)
+label is the opt-in remedy for services that need it.
 
 ## No data-plane encryption { #no-encryption }
 
@@ -163,15 +169,16 @@ network create is rejected rather than stored and ignored.
 put TLS inside the containers for anything that needs confidentiality between
 services.
 
-## No metrics endpoint { #no-metrics }
+## Metrics are opt-in { #no-metrics }
 
-There is no `/metrics`, no Prometheus surface, and no counters exported
-anywhere.
+There **is** a Prometheus `/metrics` endpoint — [Metrics](../use/metrics.md) —
+but it is off until you bind it with `metrics_addr` / `--metrics-addr`, and it
+is unauthenticated, mirroring dockerd. Nothing is exported anywhere else.
 
-**What to do instead.** The daemon log is the observability surface, and it is
-structured for it: every lifecycle transition carries `task_id`, `service_id`,
-`node_id`, `jail_id` and `from`/`to` fields, `--log-format json` emits one
-object per event, and `RUST_LOG` selects per-subsystem detail. Ship
+**What to do besides.** The daemon log is the other observability surface, and
+it is structured for it: every lifecycle transition carries `task_id`,
+`service_id`, `node_id`, `jail_id` and `from`/`to` fields, `--log-format json`
+emits one object per event, and `RUST_LOG` selects per-subsystem detail. Ship
 `/var/log/messages` to whatever you already run, and see
 [Reading the log](../trouble/reading-the-log.md) before you write parsers — one
 event is one line, and that property is worth verifying on your own hosts.
@@ -203,7 +210,9 @@ the host's own addressing is; it is the container addressing that is v4-only.
   is no cgroup filesystem, and a jail's entrypoint is never PID 1. An image whose
   entrypoint is an init system is rejected at task creation with a sentence
   explaining why, rather than dying silently a second later.
-- SysV IPC is disabled in the jails SatL creates, OFD file locks return
+- SysV IPC is disabled in the jails SatL creates **by default** — opt in per
+  container with the `satl.jail.sysvshm=new` / `satl.jail.sysvsem=new` labels
+  (PostgreSQL needs both). OFD file locks return
   `EINVAL`, and anything needing netlink or `io_uring` fails.
 
 ## Smaller absences, in one place

@@ -34,9 +34,28 @@ into each jail's VNET, and an embedded per-node DNS responder giving DNS
 round-robin service discovery scoped to the querying task's networks. The
 overlay MTU is derived from the measured underlay rather than assumed.
 
-**Published ports**, allocated cluster-wide and redirected on each node that
-runs a replica. Read [Why FreeBSD](why-freebsd.md#no-network-namespace-to-hang-a-routing-mesh-in-ingress-lite)
-for what this is *not*.
+**Published ports**, allocated cluster-wide, and a **routing mesh**: every
+*manager* answers on the port, whether or not it runs a replica — pf redirects
+to a task's overlay address, on this node or another, with return-path SNAT.
+The trade is Docker's own: a relayed connection loses the client address, and a
+service that needs it opts into a userspace PROXY-protocol mode with a label.
+Read [Publishing ports](../use/publishing-ports.md).
+
+**Metrics.** A Prometheus `/metrics` endpoint, off by default and bound with
+`metrics_addr` / `--metrics-addr`, mirroring dockerd's posture. Docker's own
+series names where dockerd defines them, so off-the-shelf dashboards render;
+`satl_*` for everything SatL-specific, including per-task rctl usage.
+
+**Image builds.** `satl build` assembles a FreeBSD OCI image from a `Satlfile`
+— a `FROM` line, a package list, env, labels, an entrypoint — and registers it
+in the node's store. There is no daemon-side build endpoint and no `COPY`; the
+format is deliberately the pkg-shaped subset of Dockerfile. See
+[Images](../use/images.md#satl-build).
+
+**Hot vertical resize.** A `service update` that changes only resource limits
+or reservations does not roll the tasks: the new rctl rules are written to the
+live jails and the same containers keep serving. See
+[Resource limits](../use/resource-limits.md#resizing-a-live-service).
 
 **Desired-state orchestration.** Restart policies with a max-attempts budget
 that survives a leader election; rolling updates with Docker's twelve policy
@@ -85,14 +104,12 @@ in particular the part about how many managers to run.
 
 | Missing | What it means for you |
 | --- | --- |
-| **`satl build`** | SatL runs images; it cannot make one. You need another machine, another tool, or the scripted path in [First container](../start/first-container.md#3-get-an-image-that-serves-something). |
 | **Automatic or cluster-wide reclamation** | `satl system prune` exists, but nothing runs it for you and one run reclaims one node's images, layers and volumes. A node never pruned still fills its pool. |
 | **Recovery from a lost quorum** | A cluster whose majority of managers is gone for good cannot be repaired from inside — there is no `ForceNewCluster` — and the only way back is restoring a majority from their own backups. |
 | **Packages** | No FreeBSD port, no `pkg install satl`. Build from source on the host that will run it. |
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
-| **A routing mesh** | See above: published ports answer only on nodes running a replica. |
-| **Metrics** | No Prometheus endpoint. The log is the observability surface. |
+| **Data-plane encryption** | The control plane is mTLS everywhere; the VXLAN overlay is not encrypted. Run the underlay on a private network. |
 | **Manager autolock** | No unlock key; the Raft log's at-rest encryption key sits next to it on disk, protected by file permissions. |
 
 There is a longer, more precise list of things that are deliberately out of
@@ -123,6 +140,18 @@ These are known, small, and none of them has a workaround worth hiding.
 - **A few Docker service flags are missing**: `--restart-delay`,
   `--restart-max-attempts`, `--restart-window`, `--force`, `--rollback`,
   `--secret-add`/`--secret-rm`. Each has a REST API equivalent.
+- **`satl kill` on a service task retires the slot for good.** The service
+  drops to 0/N and stays there: kill writes the intentional-stop state, which
+  the restart supervisor honours as "do not replace". Docker's kill signals the
+  container and the task is replaced. To rehearse a crash, kill the jail on the
+  host (`jail -r`); to bring the slot back, scale away and back or push any
+  update.
+- **The mesh hides the client address on relayed connections.** A connection
+  answered by a manager that runs no replica is SNAT-ed through the relay, so
+  the task sees the relay's address. Direct connections to a hosting node still
+  show the real client, and the
+  [`satl.publish.proxy_protocol=v2` label](../use/publishing-ports.md#the-client-address)
+  restores it everywhere for TCP.
 - **`satl network` has no `connect`, `disconnect`, `prune` or `--filter`.** The
   first two are refused by design; the others are simply absent.
 - **`satl service ps <unknown service>` exits 0 with an empty table** where
@@ -130,6 +159,5 @@ These are known, small, and none of them has a workaround worth hiding.
 
 ## Licensing
 
-SatL itself currently ships **no LICENSE file**, so its licensing is
-undetermined. Nothing on this site should be read as granting a licence to the
-software. (This documentation is separately licensed CC BY 4.0.)
+SatL is **BSD-2-Clause**, the same terms as FreeBSD itself; every source file
+carries the SPDX line. (This documentation is separately licensed CC BY 4.0.)

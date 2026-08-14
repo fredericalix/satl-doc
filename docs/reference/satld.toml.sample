@@ -97,3 +97,11 @@
 # one. Without an egress interface no NAT rule exists and containers have no
 # outbound connectivity (satld warns loudly at startup).
 #egress_if = "vtnet0"
+
+# Address the Prometheus /metrics endpoint binds, mirroring dockerd's
+# --metrics-addr (the CLI flag of the same name wins over this key). OFF when
+# unset — the endpoint is unauthenticated, exactly like dockerd's, and the
+# scrape reveals cluster shape, task ids and per-task resource usage, so bind
+# it to a private address reachable by the Prometheus server and nothing else
+# (docs/operations.md).
+#metrics_addr = "10.2.0.4:9323"

@@ -113,8 +113,8 @@ the new one climbing through the state machine.
 `--update-delay` is separate and additional: it is the pause *between* batches,
 on top of the monitor window. `--update-order start-first` brings the new task up
 before taking the old one down, which needs the service to tolerate two tasks in
-one slot briefly — and on a node publishing that service's port, means the
-[round-robin pool](publishing-ports.md#two-tasks-of-one-service-on-one-node)
+one slot briefly — and on the nodes publishing that service's port, means the
+[round-robin pool](publishing-ports.md#one-port-many-tasks-the-rule-is-static-the-pool-is-a-table)
 briefly holds both.
 
 ## A paused update, and how to get out of it
@@ -194,7 +194,12 @@ under way and applies `RollbackConfig` rather than `UpdateConfig`.
 `--force` — Docker's "restart with no spec change" — is also missing; the
 equivalent is bumping `TaskTemplate.ForceUpdate` through the API.
 
-## What else replaces tasks
+## What else replaces tasks — and one update that does not
+
+A `service update` that changes **only** resource limits or reservations is
+the exception to everything above: it does not roll at all. The new values are
+applied to the live jails' rctl rules in place — see
+[Resizing a live service](resource-limits.md#resizing-a-live-service).
 
 A rolling update is not the only thing that moves containers, and the others do
 not go through the update policy:

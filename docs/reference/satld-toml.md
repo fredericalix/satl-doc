@@ -17,7 +17,7 @@ Default location: `/usr/local/etc/satl/satld.toml`. Point `satld` elsewhere with
 
 !!! warning "The shipped sample is not the whole list"
 
-    [`satld.toml.sample`](satld.toml.sample) documents 11 of the 13 keys.
+    [`satld.toml.sample`](satld.toml.sample) documents 12 of the 14 keys.
     `cert_validity` and `overlay_blackhole` are absent from it. That gap is
     exactly the class of drift this page and its check exist to close.
 
@@ -99,6 +99,15 @@ derives it from the measured underlay prefix.
 Validity of the node certificates this daemon issues. **A testing knob**: it
 exists to make the certificate renewal window arrive in minutes instead of
 weeks.
+
+### `metrics_addr`
+
+Address the Prometheus `/metrics` endpoint binds, mirroring dockerd's
+`--metrics-addr` — the CLI flag of the same name wins over this key, and the
+endpoint is **off when neither is set**. Unauthenticated, exactly like
+dockerd's: bind a private address reachable by the Prometheus server and
+nothing else. The scrape reveals cluster shape, task ids and per-task resource
+usage. See [Metrics](../use/metrics.md).
 
 ## The shipped sample
 

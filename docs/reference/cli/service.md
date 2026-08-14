@@ -153,6 +153,10 @@ $ satl service update [OPTIONS] <SERVICE>
 | <code>--constraint-rm &lt;EXPR&gt;</code> | Remove a placement constraint |
 | <code>--label-add &lt;KEY=VALUE&gt;</code> | Add or update a service label |
 | <code>--label-rm &lt;KEY&gt;</code> | Remove a service label |
+| <code>--limit-cpu &lt;VALUE&gt;</code> | Limit CPUs. `0` clears the limit (M6g: a resources-only update is a hot resize — the live tasks are not replaced) |
+| <code>--limit-memory &lt;BYTES&gt;</code> | Limit memory. `0` clears the limit |
+| <code>--reserve-cpu &lt;VALUE&gt;</code> | Reserve CPUs. `0` clears the reservation |
+| <code>--reserve-memory &lt;BYTES&gt;</code> | Reserve memory. `0` clears the reservation |
 
 `satl service update` also accepts the [update and rollback policy options](#service-policy) (12 flags), documented once below.
 
@@ -196,9 +200,9 @@ Derived mechanically from the two commands' own `--help`, with the update and ro
 
 | Accepted by | Options |
 | --- | --- |
-| both | <code>--replicas</code> |
-| <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--limit-cpu</code>, <code>--limit-memory</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
-| <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>&lt;SERVICE&gt;</code> |
+| both | <code>--limit-cpu</code>, <code>--limit-memory</code>, <code>--replicas</code> |
+| <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
+| <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>--reserve-cpu</code>, <code>--reserve-memory</code>, <code>&lt;SERVICE&gt;</code> |
 
 A set difference cannot see that two differently-named options do the same job. These pairings are asserted by hand in `overlay/cli.yml`:
 

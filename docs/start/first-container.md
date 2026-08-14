@@ -4,9 +4,9 @@ From a host that has just finished [Install](install.md) to a container serving
 HTTP to another machine. Every step says what it does, what breaks if you skip
 it, and how to check it worked.
 
-There is a detour in the middle that cannot be avoided honestly: SatL has no
-`satl build`, and there is no public FreeBSD image that serves HTTP. Getting a
-serving image means making one. That is [step 3](#3-get-an-image-that-serves-something).
+There is a detour in the middle that cannot be avoided honestly: there is no
+public FreeBSD image that serves HTTP, so getting a serving image means making
+one. That is [step 3](#3-get-an-image-that-serves-something).
 
 ## 1. Run something that exits
 
@@ -62,12 +62,12 @@ cosmetic detail — see [What just happened](what-happened.md).
 
 ## 3. Get an image that serves something { #3-get-an-image-that-serves-something }
 
-!!! warning "There is no `satl build`"
+!!! warning "No public FreeBSD image serves HTTP"
 
-    SatL runs images and cannot produce one. And the FreeBSD project's published
-    OCI images (`freebsd/freebsd-runtime`, `-static`, `-dynamic`,
-    `-notoolchain`, `-toolchain`) are userland base images: none of them serves
-    HTTP. So to see a container serve traffic you need an image built somewhere.
+    The FreeBSD project's published OCI images (`freebsd/freebsd-runtime`,
+    `-static`, `-dynamic`, `-notoolchain`, `-toolchain`) are userland base
+    images: none of them serves anything. So to see a container serve traffic
+    you need an image built somewhere.
 
 You have three options.
 
@@ -76,28 +76,27 @@ works under the linuxulator, as long as it does not expect cgroups or
 `systemd`. This is the shortest path and the one to take if you just want to
 see the machinery move.
 
-**b. Build a FreeBSD nginx image with the script in the SatL tree.** SatL ships
-`hack/images/build-freebsd-nginx.sh`, which is what its own integration tests
-use. Read what it needs before you run it, because it is not a one-liner:
+**b. Build a FreeBSD nginx image with `satl build`.** A `Satlfile` is the
+pkg-shaped subset of a Dockerfile — no `COPY`, no context:
 
-- **root** (it re-execs itself under `sudo`);
-- the host tools `skopeo`, `jq` and `pkg`;
-- **a registry it can push to**, at `127.0.0.1:5000` by default, already seeded
-  with `satl-test/freebsd-runtime:15.1`. That means `pkg install
-  docker-registry skopeo`, a `config.yml` listening on loopback with no TLS,
-  `service docker_registry start`, and one `skopeo copy` to mirror
-  `docker.io/freebsd/freebsd-runtime:15.1` into it;
-- network access to the FreeBSD package mirror on the first run.
+```text
+FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
+PKG nginx
+EXPOSE 80/tcp
+ENTRYPOINT ["/usr/local/sbin/nginx", "-g", "daemon off;"]
+```
 
-What it does: unpacks the base image's layers, runs `pkg --rootdir` to install
-nginx into the rootfs, writes a minimal `nginx.conf` and a static page reading
-`satl-test-ok`, bakes `/var/run/ld-elf.so.hints` with `ldconfig` — a jail never
-runs `rc`, so without that step the runtime linker never searches
-`/usr/local/lib` and nginx dies looking for `libpcre2-8.so.0` — verifies with
-`chroot rootfs nginx -t`, and pushes a single-layer `freebsd/amd64` image.
+```sh
+sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-nginx:latest
+```
 
-Override the registry and tags with `SATL_TEST_REGISTRY`, `SATL_BASE_REF`,
-`SATL_DEST_REF` and `SATL_PKG_ABI`.
+It needs root (packages are installed into the rootfs with `pkg --rootdir`,
+and the linker hints are baked with a `chroot`ed `ldconfig`), a `FROM` image
+already in the local store — `satl pull` it first; the reference above assumes
+a loopback registry seeded with `freebsd/freebsd-runtime:15.1` — and network
+access to the FreeBSD package mirror on the first run. The result registers
+into the node's image store directly; the details are in
+[Images](../use/images.md#satl-build).
 
 **c. Build one somewhere else** and push it to a registry SatL can reach. A
 registry over plain HTTP has to be reachable as such; SatL treats

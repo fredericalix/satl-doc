@@ -1,8 +1,9 @@
 # Images
 
 SatL pulls OCI images from any registry that speaks the distribution API, and
-turns their layers into ZFS datasets. There is no build: `satl build` does not
-exist, and images come from somewhere else.
+turns their layers into ZFS datasets. It can also **build** FreeBSD images
+itself, with `satl build` and a `Satlfile` — the pkg-shaped subset of a
+Dockerfile, covered [below](#satl-build).
 
 ```sh
 satl pull registry.example.com/nginx:1
@@ -140,6 +141,55 @@ registries that answer a `Basic` challenge get the credentials directly.
     already present on every node that might run it. Pull it there first
     (`satl pull` on each node, with credentials), or push it to a registry the
     nodes can read without authenticating.
+
+## Building a FreeBSD image: `satl build` { #satl-build }
+
+A FreeBSD image is a base userland plus packages, and `satl build` is exactly
+that pipeline, driven by a `Satlfile`:
+
+```text
+FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
+PKG postgresql17-server
+EXPOSE 5432/tcp
+ENTRYPOINT ["/usr/local/bin/postgres", "-D", "/var/db/postgres/data"]
+```
+
+```sh
+sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-postgres:latest
+```
+
+The verbs are `FROM` (one, mandatory), `PKG`, `ENV`, `LABEL`, `WORKDIR`,
+`EXPOSE`, and exec-form `ENTRYPOINT`/`CMD`. **There is no `COPY` and no build
+context**: an image is the base rootfs plus packages; content goes in via a
+mounted config or a later image. The shell form of `ENTRYPOINT` is refused —
+it would promise a shell the image may not have.
+
+What the build does: pulls the base into the local store, unpacks its layers,
+`pkg --rootdir install` for each `PKG`, bakes `/var/run/ld-elf.so.hints` with
+`ldconfig` (a jail never runs `rc`; without the hints, pkg-installed binaries
+die on missing shared objects), and repacks a single-layer `freebsd/amd64`
+OCI image. It runs **on the daemon's host, as root**, against the local
+content store — this is not Docker's `POST /build`, which does not exist here
+and answers `404`.
+
+!!! warning "The image lands in this node's store only"
+
+    There is no cluster-wide image distribution. A service scheduled on three
+    nodes needs the image on all three: build on each, or push the result to a
+    registry with `skopeo` and let the nodes pull.
+
+Two jail facts a stateful image build runs into, both covered in
+[the platform notes](../reference/out-of-scope.md#platform):
+
+- the minimal `freebsd-runtime` base has **no PAM modules**, so privilege
+  droppers like `sudo` do not work in it — run the service as a numeric
+  `user:` in the compose file or `--user`, and pre-chown its volume;
+- jails disable **SysV IPC** by default, which PostgreSQL cannot even
+  `initdb` without — opt in per container with the labels
+  `satl.jail.sysvshm=new` and `satl.jail.sysvsem=new`.
+
+That label mechanism is general: `satl.jail.<param>=<value>` passes any jail
+parameter ocijail understands through as an OCI annotation.
 
 ## Where the bytes go
 

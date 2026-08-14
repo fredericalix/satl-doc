@@ -12,8 +12,8 @@ Those two lines do genuinely different things. `satl run -p` publishes in **host
 mode**: the port is bound on the node running the task, recorded on that task,
 and shown in `satl ps`. `satl service create -p` publishes in **ingress mode**,
 which is Docker's default and therefore what you get without asking — the port
-is allocated once for the whole cluster and redirected on every node running a
-task of the service.
+is allocated once for the whole cluster and answered on **every manager**,
+whether or not that manager runs a replica (the routing mesh, below).
 
 ## Before anything works
 
@@ -86,35 +86,64 @@ That address is reachable from the host directly — the bridge is on the host �
 so it is the honest local test, and it also tells you whether the container is
 serving at all before you start suspecting pf.
 
-## Ingress-lite: only nodes running a task answer
+## The routing mesh: every manager answers
 
 Docker's ingress is a **routing mesh**: every node in the swarm accepts
 connections on a published port and forwards them internally to a node that has
-a replica. SatL's ingress is not that.
+a replica. SatL's ingress is that, built out of pf.
 
-!!! warning "The port answers on the nodes that run a task of the service, and only there"
+!!! success "The port answers on every manager, replica or not"
 
     The port is allocated centrally, exactly as SwarmKit allocates it — one
     cluster-wide owner per (protocol, published port), sticky across updates,
-    auto-assigned from 30000–32767 when the request says `0` — and it is then
-    redirected **on each node that runs a task, to that node's own task**. A
-    node running no task of the service refuses the connection.
+    auto-assigned from 30000–32767 when the request says `0`. Every **manager**
+    redirects it into a pf table holding the live tasks' *overlay* addresses,
+    round-robin: a task on the node itself is reached directly, a task on
+    another node is reached across the overlay, with return-path SNAT so the
+    reply comes back through the relaying manager. Failover is the pool:
+    kill a replica and its address leaves every manager's table within
+    seconds, with no client-visible gap.
 
-Three consequences follow directly:
+    **Workers are the exception.** Computing the pool takes a store replica,
+    which only managers have — so a worker answers a published port only when
+    it runs a task of the service itself, the pre-mesh behaviour. Point a load
+    balancer at managers, or health-check the port if workers are in the pool
+    of backends.
 
-- **A load balancer in front of the swarm must health-check the port.** It must
-  not assume every node serves it. A node with no replica is not a degraded
-  backend — it is a correct one, refusing a port it does not host. A
-  round-robin LB across all nodes with no health check will fail a predictable
-  fraction of connections.
-- **A service with fewer replicas than nodes is not reachable everywhere.**
-  Scaling `web` to 2 on a 3-node cluster means one node stops answering, and
-  nothing about that is an error.
-- **There is no second hop, so the source address a container sees is the real
-  client's.** That is a genuine improvement over a mesh, and worth knowing if
-  you log client addresses.
+What it costs, stated plainly:
 
-The full routing mesh is future work.
+- **A relayed connection loses the client address.** The SNAT that makes the
+  return path work is what hides the client — Docker's mesh makes the same
+  trade for the same reason. A connection that lands on a node hosting a
+  replica is not relayed and keeps the real address. The opt-in remedy is
+  below.
+- **One userspace hop none at all.** A relayed connection is kernel-forwarded
+  by pf, not proxied; the cost is the SNAT, not a copy.
+- The pool targets the task's **container port at its overlay address**, so a
+  relayed packet can never re-match a published-port rule — loop safety by
+  construction.
+
+## The client address, and the PROXY-protocol opt-in { #the-client-address }
+
+A service that logs, rate-limits or geo-locates by client address cannot
+accept the mesh's SNAT. For those, SatL has a second publish mode, opted into
+with a **service** label:
+
+```sh
+satl service update --label-add satl.publish.proxy_protocol=v2 web
+```
+
+On a labelled service, the port never gets a pf redirect. Instead `satld`
+itself listens on it — on every manager, as the mesh does — picks a healthy
+task from the same set that feeds the pf table, dials it over the overlay, and
+writes a **PROXY protocol v2** header before splicing the two streams. The
+task sees the real client address; the application must parse the header
+(nginx: `listen 80 proxy_protocol;` plus `set_real_ip_from`). TCP only — UDP
+ports of a labelled service stay on the pf path.
+
+The trade is the honest one: a userspace copy per connection and the daemon in
+the data path, against the client address and health-aware member selection
+that pf cannot do. If you do not need the address, stay on the mesh.
 
 ## pf does not health-check what it redirects to
 
@@ -147,17 +176,25 @@ never be gated at all, are on one page rather than half on each:
 [Publishing a port tightens the
 defaults](healthchecks.md#publishing-a-port-tightens-the-defaults).
 
-## Two tasks of one service on one node
+## One port, many tasks: the rule is static, the pool is a table
 
-They share one rule, with a pf address pool:
+Whether a node runs two tasks of the service or none, the redirect reads the
+same:
 
 ```
-rdr pass inet proto tcp from any to any port 8080 -> { 10.88.0.2, 10.88.0.3 } port 80 round-robin
+rdr pass inet proto tcp from any to any port 8080 -> <satl_p8080_tcp_80> port 80 round-robin
 ```
 
-That is what to expect in the anchor after scaling a service past the node
-count, and momentarily during a rolling update while a slot's old and new tasks
-overlap. Connections alternate between that node's own tasks.
+The pool is a pf **table**, not an inline address list. The ruleset is
+generated once per port and left alone; membership is edited in place with
+`pfctl -T replace` as tasks come and go, so a rolling update or a kill does not
+reload the anchor — and an established connection keeps its member across a
+membership swap. The table holds *overlay* addresses, so it covers the
+cluster's tasks, not only this node's.
+
+```sh
+pfctl -a satl/rdr -t satl_p8080_tcp_80 -T show      # who the port currently serves
+```
 
 **Two separate rules for one published port would be a bug.** pf evaluates
 translation rules in order and the first match decides, so every task but one
@@ -254,8 +291,9 @@ level, not an edge, and it has consequences worth relying on:
 3. **Is pf enabled and are the anchors declared?** `pfctl -s info`, and
    `pfctl -a satl/rdr -s nat` — "does not exist" means the anchor is empty, not
    that pf is broken.
-4. **Does this node run a task of the service?** `satl service ps <service>`.
-   If it does not, the refusal is correct.
+4. **Is the node you are testing a manager?** The mesh answers on every
+   manager. A worker answers only when it runs a task of the service —
+   `satl service ps <service>` — and that refusal is correct.
 5. **Is the container serving at all?** `curl <task ip>:<container port>` from
    the node, using the address in `/var/db/satl/net/<network>.json`.
 6. **What did the daemon load?**
