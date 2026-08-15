@@ -107,7 +107,10 @@ Built and registered 127.0.0.1:5000/satl-test/tuto-web:latest (manifest sha256:1
 
     A three-replica service needs the image on every node it may run on.
     Build on each (copy the directory, run the same command), or push the
-    result to a registry with `skopeo`. This page builds per node.
+    result to a registry the nodes can pull from — `satl build --push -t
+    registry.example.com/apps/tuto-web:1` does it in one command since M8a.
+    This page builds per node because the test cluster's registry is
+    loopback-only.
 
 ## 3. The database image
 

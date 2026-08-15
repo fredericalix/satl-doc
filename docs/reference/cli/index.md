@@ -22,6 +22,7 @@ $ satl [OPTIONS] <COMMAND>
 | [`satl exec`](exec.md) | Execute a command in a running container |
 | [`satl inspect`](inspect.md) | Return low-level information on containers |
 | [`satl pull`](pull.md) | Download an image from a registry |
+| [`satl push`](push.md) | Push an image from this node's store to a registry (client-side, like `satl build`) |
 | [`satl build`](build.md) | Build a FreeBSD image from a Satlfile into this node's store (M6f) |
 | [`satl images`](images.md) | List images |
 | [`satl volume`](volume.md) | Manage volumes |

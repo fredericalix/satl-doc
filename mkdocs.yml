@@ -210,6 +210,7 @@ nav:
           - satl exec: reference/cli/exec.md
           - satl inspect: reference/cli/inspect.md
           - satl pull: reference/cli/pull.md
+          - satl push: reference/cli/push.md
           - satl build: reference/cli/build.md
           - satl images: reference/cli/images.md
           - satl volume: reference/cli/volume.md

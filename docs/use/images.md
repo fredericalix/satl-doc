@@ -189,11 +189,21 @@ single-layer `freebsd/amd64` OCI image. It runs **on the daemon's host, as
 root**, against the local content store — this is not Docker's `POST /build`,
 which does not exist here and answers `404`.
 
-!!! warning "The image lands in this node's store only"
+!!! warning "The image lands in this node's store only — unless you push it"
 
     There is no cluster-wide image distribution. A service scheduled on three
-    nodes needs the image on all three: build on each, or push the result to a
-    registry with `skopeo` and let the nodes pull.
+    nodes needs the image on all three: build on each, or **push the result to
+    a registry and let the nodes pull**:
+
+    ```sh
+    sudo satl build --push -t registry.example.com/apps/web:1.2
+    sudo satl push 127.0.0.1:5000/satl-test/freebsd-nginx:latest   # an existing image
+    ```
+
+    The push is client-side, like the build (there is no
+    `POST /images/{name}/push` on the daemon), uploads only the blobs the
+    registry lacks, and takes credentials as `--username` +
+    `--password-stdin` — nothing is stored anywhere.
 
 Two jail facts a stateful image build runs into, both covered in
 [the platform notes](../reference/out-of-scope.md#platform):

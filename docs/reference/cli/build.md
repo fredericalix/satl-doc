@@ -17,6 +17,9 @@ $ satl build [OPTIONS] --tag <NAME[:TAG]>
 | <code>-f, --file &lt;PATH&gt;</code> | Build file to read (default: ./Satlfile) |
 | <code>--pkg-abi &lt;ABI&gt;</code> | Package ABI for the pkg install (default: FreeBSD:15:amd64)<br>Default: <code>FreeBSD:15:amd64</code> |
 | <code>--store &lt;PATH&gt;</code> | Image store to register into (default: the local daemon's)<br>Default: <code>/var/db/satl/images</code> |
+| <code>--push</code> | Push the image to its registry after a successful build |
+| <code>-u, --username &lt;USER&gt;</code> | Registry username for --push (with --password-stdin) |
+| <code>--password-stdin</code> | Read the registry password for --push from stdin |
 
 ## Global options { #global-options }
 
