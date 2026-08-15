@@ -83,9 +83,9 @@ What is deliberately not there:
 [Images](../use/images.md#satl-build) — but it runs **client-side, on the
 node's host**, not in the daemon. There is no BuildKit, no `Dockerfile`
 support, and no `/build` endpoint — it answers `404`. `/_ping` carries no
-`Builder-Version` header for the same reason. There is no `COPY` in a
-Satlfile and no build context: an image is a base userland plus packages, and
-it lands in the local node's store only.
+`Builder-Version` header for the same reason. The Satlfile's `COPY` reads
+only the Satlfile's own directory, `RUN` executes in a chroot on the build
+host's kernel, and the image lands in the local node's store only.
 
 **What to do for anything else.** Build elsewhere and push to a registry SatL
 can pull from. On FreeBSD, `skopeo` copies images between registries and

@@ -158,19 +158,36 @@ ENTRYPOINT ["/usr/local/bin/postgres", "-D", "/var/db/postgres/data"]
 sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-postgres:latest
 ```
 
-The verbs are `FROM` (one, mandatory), `PKG`, `ENV`, `LABEL`, `WORKDIR`,
-`EXPOSE`, and exec-form `ENTRYPOINT`/`CMD`. **There is no `COPY` and no build
-context**: an image is the base rootfs plus packages; content goes in via a
-mounted config or a later image. The shell form of `ENTRYPOINT` is refused —
-it would promise a shell the image may not have.
+The verbs are `FROM` (one, mandatory), `PKG`, `COPY`, `RUN`, `ENV`, `LABEL`,
+`WORKDIR`, `EXPOSE`, and exec-form `ENTRYPOINT`/`CMD`. The shell form of
+`ENTRYPOINT` is refused — it would promise a shell the image may not have.
+
+`COPY` reads from the **build context — the Satlfile's own directory**:
+sources are context-relative, and `..`, absolute paths and symlink escapes
+are refused. A directory source copies its *contents*, as Docker's COPY does;
+a relative destination resolves against `WORKDIR`. `RUN` executes
+`/bin/sh -c` **in a chroot of the assembled rootfs**, with the Satlfile's
+`ENV` and `WORKDIR` — on the build host's kernel, so build on the FreeBSD
+major you deploy. All `PKG` steps run before the first `COPY`/`RUN` (a
+package must be installed before a step can use it); the rest execute in
+file order.
+
+```text
+FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
+PKG node24
+COPY app/ /srv/app/
+RUN /usr/local/bin/node --check /srv/app/server.js
+EXPOSE 8080/tcp
+ENTRYPOINT ["/usr/local/bin/node", "/srv/app/server.js"]
+```
 
 What the build does: pulls the base into the local store, unpacks its layers,
 `pkg --rootdir install` for each `PKG`, bakes `/var/run/ld-elf.so.hints` with
 `ldconfig` (a jail never runs `rc`; without the hints, pkg-installed binaries
-die on missing shared objects), and repacks a single-layer `freebsd/amd64`
-OCI image. It runs **on the daemon's host, as root**, against the local
-content store — this is not Docker's `POST /build`, which does not exist here
-and answers `404`.
+die on missing shared objects), runs the COPY/RUN steps, and repacks a
+single-layer `freebsd/amd64` OCI image. It runs **on the daemon's host, as
+root**, against the local content store — this is not Docker's `POST /build`,
+which does not exist here and answers `404`.
 
 !!! warning "The image lands in this node's store only"
 
