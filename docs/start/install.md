@@ -58,13 +58,25 @@ until you do.
 
 ## 5. Build and install
 
+The fastest path is the prebuilt package, if you have one:
+
+```sh
+pkg add ./satl-0.1.0.pkg    # no repository needed; pulls ocijail if a repo is configured
+```
+
+The post-install message recalls the host prerequisites (steps 1–4 of this
+page). To build the package yourself: `make package` writes
+`dist/satl-<version>.pkg`.
+
+From source instead:
+
 ```sh
 git clone <the SatL repository> satl
 cd satl
 make install          # builds in release mode, then installs
 ```
 
-There is no package and no release tarball. `make install` needs root (it
+`make install` needs root (it
 writes under `/usr/local`), builds into `target/install` deliberately — so that
 a build under `sudo` cannot leave root-owned artifacts in the tree your
 unprivileged builds use — and installs four things:

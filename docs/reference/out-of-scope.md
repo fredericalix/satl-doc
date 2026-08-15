@@ -93,10 +93,13 @@ preserves multi-platform indexes byte for byte, which matters because platform
 selection is exactly what those indexes are for. Note that SatL refuses a
 plain-HTTP registry unless it is loopback.
 
-## No packages, no binary releases, no `satl` group { #no-packages }
+## No port, no signed releases, no `satl` group { #no-packages }
 
-SatL is built from source with `make install`. There is no FreeBSD package, no
-port, no signed tarball, and no `pkg` upgrade path.
+SatL has no FreeBSD *port* and nothing in the official package repositories —
+but `make package` builds a self-contained `.pkg` (binaries, rc.d script,
+sample config, the `ocijail` dependency declared) that installs anywhere with
+`pkg add ./satl-<version>.pkg`, no repository required. There is no signed
+tarball and no `pkg` upgrade channel.
 
 There is also **no dedicated `satl` group**. The API socket is mode `0660` owned
 by the user and group `satld` runs as — root, so `root:wheel` on a stock host.

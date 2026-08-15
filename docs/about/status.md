@@ -106,7 +106,7 @@ in particular the part about how many managers to run.
 | --- | --- |
 | **Automatic or cluster-wide reclamation** | `satl system prune` exists, but nothing runs it for you and one run reclaims one node's images, layers and volumes. A node never pruned still fills its pool. |
 | **Recovery from a lost quorum** | A cluster whose majority of managers is gone for good cannot be repaired from inside — there is no `ForceNewCluster` — and the only way back is restoring a majority from their own backups. |
-| **Packages** | No FreeBSD port, no `pkg install satl`. Build from source on the host that will run it. |
+| **Packages** | No FreeBSD port and no `pkg install satl` from the official repos — but `make package` builds a `.pkg` you install with `pkg add`, no repository needed. |
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
 | **Data-plane encryption** | The control plane is mTLS everywhere; the VXLAN overlay is not encrypted. Run the underlay on a private network. |
