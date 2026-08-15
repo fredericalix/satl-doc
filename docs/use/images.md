@@ -30,12 +30,12 @@ REPOSITORY                               TAG      IMAGE ID       CREATED        
 127.0.0.1:5000/satl-test/freebsd-nginx   latest   af645a19660d   56 years ago   15.63MB   freebsd/amd64
 ```
 
-!!! bug "`CREATED` is not filled in"
+!!! note "Old images show the epoch as `CREATED`"
 
-    The daemon does not record the image config's creation timestamp, so
-    `/images/json` reports `Created: 0` and the CLI faithfully renders that as
-    "56 years ago" for every image. Ignore the column; it says nothing about the
-    image. `SIZE` and `PLATFORM` are real.
+    Images pulled or built before the timestamp was read (pre-M7a) have no
+    creation time recorded, and `/images/json` reports `Created: 0` — rendered
+    as "56 years ago". Anything pulled or built since carries its real date.
+    `SIZE` and `PLATFORM` are real either way.
 
 ## Which platform you get
 

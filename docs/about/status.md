@@ -125,9 +125,9 @@ These are known, small, and none of them has a workaround worth hiding.
   anonymously. Pre-pull on every node that may run the service, or use a registry
   the nodes can read unauthenticated. See
   [Images](../use/images.md#authentication).
-- **`satl images` reports every image as created at the epoch**, so its `CREATED`
-  column reads "56 years ago" for everything. The daemon does not record the image
-  config's timestamp. `SIZE` and `PLATFORM` are real.
+- **Images from before M7a report `CREATED` as the epoch**, rendered "56 years
+  ago" — their configs carry no readable timestamp. New pulls and builds show
+  real dates.
 - **A stopped container keeps its jail until it is removed.** Docker keeps a
   stopped container's filesystem but not a live namespace; SatL leaves an empty
   jail (zero processes) and its epair in place. Three containers that exited two
