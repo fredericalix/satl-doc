@@ -12,6 +12,16 @@ satl compose ps           # this project's tasks, across the cluster
 satl compose down         # removes exactly what `up` created
 ```
 
+!!! tip "`satl stack` is the same machinery under Docker's verb names"
+
+    `satl stack deploy -c compose.yaml shop` is `compose up` with the stack
+    name as the project, `stack rm` is `down`, `stack config` is `config`,
+    and `stack ls` / `stack services` / `stack ps` read the project label
+    off the services. Docker's default applies on `deploy`: `--prune` is on
+    unless said otherwise (compose's `up` keeps its explicit
+    `--remove-orphans`). See the [`satl stack`](../reference/cli/stack.md)
+    reference.
+
 ## It has stack semantics, not `docker compose` semantics
 
 Docker has two worlds: `docker compose` makes containers on one host, and

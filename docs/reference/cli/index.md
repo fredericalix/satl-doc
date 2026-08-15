@@ -32,6 +32,7 @@ $ satl [OPTIONS] <COMMAND>
 | [`satl node`](node.md) | Manage swarm nodes |
 | [`satl compose`](compose.md) | Deploy a Compose file as cluster services (stack semantics, not `docker compose`'s). |
 | [`satl service`](service.md) | Manage services |
+| [`satl stack`](stack.md) | Manage stacks — Docker's `docker stack` verbs on SatL's compose machinery (a stack is one compose file's services and networks) |
 | [`satl secret`](secret.md) | Manage secrets |
 | [`satl config`](config.md) | Manage configs |
 

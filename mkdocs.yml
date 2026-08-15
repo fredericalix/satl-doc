@@ -218,6 +218,7 @@ nav:
           - satl ca: reference/cli/ca.md
           - satl node: reference/cli/node.md
           - satl compose: reference/cli/compose.md
+          - satl stack: reference/cli/stack.md
           - satl service: reference/cli/service.md
           - satl secret: reference/cli/secret.md
           - satl config: reference/cli/config.md
