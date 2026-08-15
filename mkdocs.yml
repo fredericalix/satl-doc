@@ -156,6 +156,7 @@ nav:
       - Install: start/install.md
       - Your first container: start/first-container.md
       - What just happened: start/what-happened.md
+      - A real application (Node.js + MariaDB): start/app-node-mariadb.md
   - Configuration:
       - config/index.md
       - satld.toml: config/satld-toml.md

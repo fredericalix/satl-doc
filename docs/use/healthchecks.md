@@ -46,6 +46,21 @@ Durations are nanoseconds on the wire, as everywhere in the Docker API.
 `NONE` — and any unrecognised first element — means no probe, with a warning,
 exactly as Docker does.
 
+!!! warning "Probe the task's own address — there is no `localhost`"
+
+    A SatL jail's `lo0` carries only `::1`; `127.0.0.1` is unassigned, so the
+    Docker-style `curl http://localhost/` above connects to nothing. Read the
+    task's own address off its interface instead — and note the minimal
+    `freebsd-runtime` base has no `awk`, so the parsing is pure shell:
+
+    ```
+    ip=$(/sbin/ifconfig | while read a b rest; do [ "$a" = inet ] && { echo "$b"; break; }; done)
+    fetch -qo /dev/null http://$ip:8080/health || exit 1
+    ```
+
+    In a compose file, every literal `$` is written `$$`. A working example
+    is in the [Node.js + MariaDB tutorial](../start/app-node-mariadb.md).
+
 !!! warning "The image's `HEALTHCHECK` is not inherited"
 
     Only the healthcheck in the service or container spec is honoured. An image
