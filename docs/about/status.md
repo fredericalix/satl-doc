@@ -110,7 +110,6 @@ in particular the part about how many managers to run.
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
 | **Data-plane encryption** | The control plane is mTLS everywhere; the VXLAN overlay is not encrypted. Run the underlay on a private network. |
-| **Manager autolock** | No unlock key; the Raft log's at-rest encryption key sits next to it on disk, protected by file permissions. |
 
 There is a longer, more precise list of things that are deliberately out of
 scope — and why — in the [reference](../reference/out-of-scope.md).

@@ -228,4 +228,3 @@ the host's own addressing is; it is the container addressing that is v4-only.
 | `satl events` as a CLI verb | `GET /events` is served — use `curl --unix-socket` |
 | volume plugins and drivers other than `local` | ZFS datasets and host bind mounts |
 | secret drivers, templating, and secret update | rotate by replacement |
-| an autolock / unlock key for manager state | the `dek` is a file on disk, protected by its mode |

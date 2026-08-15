@@ -30,6 +30,7 @@ $ satl swarm init [OPTIONS]
 | <code>--advertise-addr &lt;ADDR&gt;</code> | Advertised address (format: `<ip\|interface>[:port]`) |
 | <code>--listen-addr &lt;ADDR&gt;</code> | Listen address (format: `<ip\|interface>[:port]`) |
 | <code>--force-new-cluster</code> | Force create a new cluster from the current state |
+| <code>--autolock</code> | Lock the managers' keys behind an unlock key, shown once |
 
 ## `satl swarm join` { #satl-swarm-join }
 
@@ -67,6 +68,20 @@ $ satl swarm leave [OPTIONS]
 | --- | --- |
 | <code>-f, --force</code> | Force this node to leave the swarm, ignoring warnings |
 
+## `satl swarm update` { #satl-swarm-update }
+
+Update swarm settings
+
+```console
+$ satl swarm update [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>--autolock &lt;true&#124;false&gt;</code> | Turn manager autolock on or off (`--autolock=true\|false`)<br>Values: <code>true</code>, <code>false</code> |
+
 ## `satl swarm join-token` { #satl-swarm-join-token }
 
 Manage join tokens
@@ -87,6 +102,35 @@ $ satl swarm join-token [OPTIONS] <worker|manager>
 | --- | --- |
 | <code>--rotate</code> | Rotate the join token |
 | <code>-q, --quiet</code> | Only display the token |
+
+## `satl swarm unlock` { #satl-swarm-unlock }
+
+Unlock a locked manager
+
+```console
+$ satl swarm unlock [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>--key &lt;KEY&gt;</code> | The unlock key, base64. Without the flag, one line is read from stdin (pipe it, or type it in) |
+
+## `satl swarm unlock-key` { #satl-swarm-unlock-key }
+
+Display or rotate the manager unlock key
+
+```console
+$ satl swarm unlock-key [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>--rotate</code> | Rotate the unlock key; every manager reseals |
+| <code>-q, --quiet</code> | Only display the key |
 
 ## Global options { #global-options }
 

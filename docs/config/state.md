@@ -120,6 +120,45 @@ encryption, because the whole log is.
       put it in a git repository, do not include it in a backup you would not
       also trust with the TLS private key.
 
+## Autolock: the DEK under an operator-held key { #autolock }
+
+By default `dek` is a plain 0600 file — anyone who reads the disk has it.
+`satl swarm update --autolock=true` changes that: every manager seals its DEK
+under a cluster-wide **unlock key** and deletes the plain file, leaving
+`raft/dek.sealed`. The unlock key is printed **once**, at enable time and at
+each rotation:
+
+```sh
+satl swarm update --autolock=true      # prints the unlock key once
+satl swarm unlock-key                  # print it again (unlocked manager)
+satl swarm unlock-key --rotate         # replace it; every manager reseals
+```
+
+A locked manager boots into a locked mode: the API socket answers `503` to
+everything except `/_ping` and `POST /swarm/unlock` until the key arrives:
+
+```sh
+satl swarm unlock --key '…'            # or pipe the key on stdin
+```
+
+The DEK then exists only in memory — no plain file is ever written back. A
+wrong key is a 401. Disabling (`--autolock=false`) writes the plain `dek`
+back on every manager.
+
+!!! warning "The unlock key is not in any backup"
+
+    It lives in the encrypted store — readable only after an unlock — and in
+    whatever password manager you put it in. On a cluster with autolock on,
+    **back up the unlock key alongside the raft snapshots**, or a restore is
+    a paperweight: `dek.sealed` without the key opens nothing. The key
+    survives in the store across a CA rotation; it does not survive losing
+    the quorum's stores.
+
+    And plan restarts: a locked manager that reboots serves nothing until
+    someone unlocks it. Autolock trades unattended reboots for at-rest
+    confidentiality — on a test cluster it is mostly a way to forget why the
+    API answers 503.
+
 ## Crash recovery
 
 Cluster state recovers fully from `raft/` after an unclean stop, `kill -9`
