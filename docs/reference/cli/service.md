@@ -31,8 +31,10 @@ $ satl service create [OPTIONS] <IMAGE> [COMMAND]...
 | Option | Description |
 | --- | --- |
 | <code>--name &lt;NAME&gt;</code> | Service name |
-| <code>--replicas &lt;N&gt;</code> | Number of tasks (replicated services only) |
-| <code>--mode &lt;MODE&gt;</code> | Service mode<br>Values: <code>replicated</code>, <code>global</code> |
+| <code>--replicas &lt;N&gt;</code> | Number of tasks (replicated services only; on a replicated job it sets both `MaxConcurrent` and `TotalCompletions`, as Docker's CLI does) |
+| <code>--mode &lt;MODE&gt;</code> | Service mode<br>Values: <code>replicated</code>, <code>global</code>, <code>replicated-job</code>, <code>global-job</code> |
+| <code>--max-concurrent &lt;N&gt;</code> | Maximum number of job tasks live at once (replicated-job only) |
+| <code>--total-completions &lt;N&gt;</code> | Total completions that finish a replicated job (replicated-job only) |
 | <code>-p, --publish &lt;PORT&gt;</code> | Publish a port as a node port (`[published:]target[/protocol]`) |
 | <code>-e, --env &lt;KEY=VALUE&gt;</code> | Set environment variables |
 | <code>-l, --label &lt;KEY=VALUE&gt;</code> | Service labels |
@@ -204,7 +206,7 @@ Derived mechanically from the two commands' own `--help`, with the update and ro
 | Accepted by | Options |
 | --- | --- |
 | both | <code>--limit-cpu</code>, <code>--limit-memory</code>, <code>--replicas</code> |
-| <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--placement-pref</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
+| <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--max-concurrent</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--placement-pref</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>--total-completions</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
 | <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>--placement-pref-add</code>, <code>--placement-pref-rm</code>, <code>--reserve-cpu</code>, <code>--reserve-memory</code>, <code>&lt;SERVICE&gt;</code> |
 
 A set difference cannot see that two differently-named options do the same job. These pairings are asserted by hand in `overlay/cli.yml`:

@@ -133,6 +133,37 @@ code.
 exits 0 and only prints it — worth knowing if you have a script that tests the
 exit status.
 
+## Jobs: services that run to completion { #jobs }
+
+A keep-alive service is replaced when it stops; a **job** is the opposite — it
+runs until it finishes, and finishing is the goal:
+
+```sh
+satl service create --mode replicated-job --replicas 4 db-migrate:3
+satl service create --mode global-job node-inventory:1
+```
+
+A replicated job runs `TotalCompletions` slots to a zero exit, at most
+`--max-concurrent` at a time (both default to the replica count). A global job
+runs once per eligible node — and a node that joins or becomes eligible later
+gets its run too, which makes it the cluster-wide "run this everywhere" tool.
+
+The semantics invert the ones above:
+
+- a task that exits 0 is `Complete` and is **never restarted** — that is the
+  success, and `satl service ls` counts it (`REPLICAS` reads completions over
+  the goal: `2/4` means two done);
+- a task that fails is retried in its slot, within the restart budget —
+  `none` is rejected on a job, and `any` is rewritten to `on-failure` at the
+  API;
+- **`satl service update` on a job re-runs it**: the old run is stopped and
+  every slot starts over on the new spec. That, not a rolling update, is the
+  point of updating a job — there is no rollout status.
+
+Two gaps, stated: a retry starts immediately (jobs have no restart-delay
+queue), and `Restart.Window` is not honoured — the attempt budget counts the
+slot's lifetime, not a rate.
+
 ## Keeping something running
 
 ```sh
