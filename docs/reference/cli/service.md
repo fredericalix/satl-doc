@@ -37,6 +37,7 @@ $ satl service create [OPTIONS] <IMAGE> [COMMAND]...
 | <code>-e, --env &lt;KEY=VALUE&gt;</code> | Set environment variables |
 | <code>-l, --label &lt;KEY=VALUE&gt;</code> | Service labels |
 | <code>--constraint &lt;EXPR&gt;</code> | Placement constraints |
+| <code>--placement-pref &lt;PREF&gt;</code> | Soft placement preference (`spread=node.labels.zone`); repeatable, applied in order |
 | <code>--limit-cpu &lt;VALUE&gt;</code> | Limit CPUs |
 | <code>--limit-memory &lt;BYTES&gt;</code> | Limit memory |
 | <code>--restart-condition &lt;CONDITION&gt;</code> | Restart when a condition is met<br>Values: <code>none</code>, <code>on-failure</code>, <code>any</code> |
@@ -151,6 +152,8 @@ $ satl service update [OPTIONS] <SERVICE>
 | <code>--replicas &lt;N&gt;</code> | Number of tasks |
 | <code>--constraint-add &lt;EXPR&gt;</code> | Add or update a placement constraint |
 | <code>--constraint-rm &lt;EXPR&gt;</code> | Remove a placement constraint |
+| <code>--placement-pref-add &lt;PREF&gt;</code> | Add a placement preference (`spread=node.labels.zone`) |
+| <code>--placement-pref-rm &lt;DESCRIPTOR&gt;</code> | Remove a placement preference by descriptor (`node.labels.zone`) |
 | <code>--label-add &lt;KEY=VALUE&gt;</code> | Add or update a service label |
 | <code>--label-rm &lt;KEY&gt;</code> | Remove a service label |
 | <code>--limit-cpu &lt;VALUE&gt;</code> | Limit CPUs. `0` clears the limit (M6g: a resources-only update is a hot resize — the live tasks are not replaced) |
@@ -201,8 +204,8 @@ Derived mechanically from the two commands' own `--help`, with the update and ro
 | Accepted by | Options |
 | --- | --- |
 | both | <code>--limit-cpu</code>, <code>--limit-memory</code>, <code>--replicas</code> |
-| <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
-| <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>--reserve-cpu</code>, <code>--reserve-memory</code>, <code>&lt;SERVICE&gt;</code> |
+| <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--placement-pref</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
+| <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>--placement-pref-add</code>, <code>--placement-pref-rm</code>, <code>--reserve-cpu</code>, <code>--reserve-memory</code>, <code>&lt;SERVICE&gt;</code> |
 
 A set difference cannot see that two differently-named options do the same job. These pairings are asserted by hand in `overlay/cli.yml`:
 

@@ -334,11 +334,36 @@ A few more mappings, so you know they are not dropped: `labels:` become the
 **container's** labels and `deploy.labels:` the **service's** (Docker's own
 split); `deploy.mode: global` becomes a global service;
 `deploy.placement.max_replicas_per_node` becomes `Placement.MaxReplicas`;
+`deploy.placement.preferences` accepts `spread: <descriptor>` (below);
 `deploy.endpoint_mode` accepts `dnsrr` only, since [there is no
 VIP](../docker-differences.md#you-expect-a-service-vip);
 `healthcheck.disable: true` becomes no probe, a bare string becomes `CMD-SHELL`,
 and a list not starting with `CMD`, `CMD-SHELL` or `NONE` is refused rather than
 silently producing no probe.
+
+## Placement preferences: the soft nudge
+
+Constraints are hard — a node either matches or is out. A placement
+*preference* only reorders the candidates, and the one strategy is `spread`
+over a descriptor's values:
+
+```sh
+satl service create --placement-pref spread=node.labels.zone --replicas 4 app:1
+```
+
+```yaml
+deploy:
+  placement:
+    preferences:
+      - spread: node.labels.zone
+```
+
+With four replicas over zones `a` and `b`, the scheduler puts two in each
+before it double-books one — where the default spread only counts nodes. The
+descriptor is `node.id`, `node.hostname`, `node.labels.<key>` or
+`engine.labels.<key>`; nodes missing the label form one empty-value group, as
+Docker's. A preference never makes a node ineligible — it is a nudge, not a
+filter, and a one-group cluster schedules exactly as without it.
 
 ## The four subcommands, and the ones that are absent
 
