@@ -25,7 +25,8 @@ ordered by how often each step is the answer, and the first step is the only one
 that distinguishes "our accounting is wrong" from "the fabric changed".
 
 1. **DF ping sweep the underlay**, every node to every other.
-2. Compare every overlay interface's MTU against that measurement − 50 —
+2. Compare every overlay interface's MTU against that measurement − 50 (− 84
+   on an encrypted network) —
    **including the in-jail `epair` `b` ends**, which are the ones nothing
    propagates to.
 3. Check the **outer fragmentation counters on both ends**
@@ -73,7 +74,9 @@ does; an interface *flap* does not, because static entries survive `down`/`up`.
     a successful `create`.
 
     Several networks per node legitimately share one UDP socket on port 4789
-    with different VNIs, each keeping an independent FDB. The duplicate-VNI
+    with different VNIs, each keeping an independent FDB. (Encrypted networks
+    are the exception: each binds its own port from 4790–4999 — see
+    [below](#encrypted).) The duplicate-VNI
     check exists to protect that sharing.
 
 ## One pair of tasks fails and everything else works { #one-pair }
@@ -135,7 +138,8 @@ else touched, but the reconciler owns the table.
 
     Prefer comparing the FDB against what the control plane says it programmed,
     and use `tcpdump -ni <underlay> "udp port 4789"` when you want to watch the
-    frames themselves.
+    frames themselves. On an encrypted network the frames are ESP, not UDP —
+    see [below](#encrypted).
 
 ## Everything works, throughput is poor, packet counts are doubled { #fragmentation }
 
@@ -353,6 +357,55 @@ and epair counters and the fragmentation counters are all the host's anyway.
     arrived. Packet counts across a tunnel are only meaningful next to the byte
     counts, the retransmit counter, and a bare-underlay control transfer run in
     the same session.
+
+## Verifying an encrypted network, and watching rotation { #encrypted }
+
+Everything above applies to a network created with `--opt encrypted`, with
+three twists: its VTEP binds its **own port from 4790–4999** rather than
+sharing 4789, its frames cross the underlay as **ESP (IP protocol 50)**, and
+its MTU budget is underlay − 84 (1416 on 1500), so the
+[fragmentation](#fragmentation) math moves with it.
+
+**Verifying the wire.** Between two nodes running tasks of the network,
+everything on the network's port must be ESP — the UDP capture must print
+nothing:
+
+```sh
+sudo tcpdump -ni <underlay-if> proto 50                 # the ESP flow itself
+sudo tcpdump -ni <underlay-if> udp port <4790..4999>    # must print NOTHING
+sudo setkey -D | head                                   # the SAs this node holds
+sudo setkey -DP                                         # the outbound policies
+```
+
+To watch the *decapsulated* packets during a capture, present them to bpf on
+`enc0` too: `sudo sysctl net.enc.in.ipsec_bpf_mask=2`, then `tcpdump -ni enc0
+udp port <port>`. (`satld` sets the *filter* mask — the one pf sees — itself;
+the bpf mask is a capture-time knob for you.)
+
+**A cleartext probe is supposed to die.** The `satl/guard` anchor blocks
+cleartext UDP to 4790–4999 on the underlay and passes only what arrives
+decapsulated on `enc0`. If you flush a node's SAs and ping across, the probe
+shows 100 % loss *and* nothing decapsulates onto the overlay bridge — the
+evidence is the block rule's counter moving (`pfctl -a satl/guard -sr`), not
+the ping. The node's security reconcile is level-triggered and runs at least
+once a minute, so a flushed guard, SA or SP converges back within a minute; if
+it does not, the node's log names the `sysctl`/`ifconfig`/`pfctl`/`setkey`
+call that failed.
+
+**Rotation is logged on the leader only.** Keys rotate every 12 h by default,
+and the `keyring transition` lines (`phase=generate|append|promote|prune`, with
+the network name) appear in exactly one manager's log — grep **all** managers
+before concluding rotation is stuck, and remember `/var/log/messages` rotates
+roughly hourly (`bzcat messages.*.bz2 | grep -a`):
+
+```sh
+sudo grep -a 'keyring transition' /var/log/messages    # run on each manager
+```
+
+**One permanent side effect, by design.** On the first encrypted network a
+node hosts, `satld` sets `net.enc.in.ipsec_filter_mask=2` and brings `enc0`
+up — node-wide, once, and deliberately never restored when the last encrypted
+network leaves. That is the design, not a leak.
 
 ## `if_vxlan` is not in the GENERIC kernel { #kldload }
 

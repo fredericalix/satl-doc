@@ -161,16 +161,33 @@ relayed connection to carry the relay's address, not the client's — the
 [`satl.publish.proxy_protocol=v2`](../use/publishing-ports.md#the-client-address)
 label is the opt-in remedy for services that need it.
 
-## No data-plane encryption { #no-encryption }
+## Data-plane encryption is opt-in — and never for ingress { #no-encryption }
 
-The control plane is mutual TLS everywhere. **The overlay is not encrypted.**
-VXLAN carries container traffic between nodes as it is, on UDP 4789, and there
-is no equivalent of Docker's `--opt encrypted` — a driver option map on a
-network create is rejected rather than stored and ignored.
+The control plane is mutual TLS everywhere, and the overlay data plane **can**
+be encrypted: `satl network create -d overlay --opt encrypted` wraps the
+network's VXLAN datagrams in IPsec ESP (AES-128-GCM), with cluster-managed keys
+and automatic rotation. [Networks](../use/networks.md#encrypted) has the whole
+story. What does not exist:
 
-**What to do instead.** Run the underlay on a private network you control, and
-put TLS inside the containers for anything that needs confidentiality between
-services.
+- **No encrypted `ingress` network.** Every node holds an ingress assignment,
+  so its keyring would ship cluster-wide instead of to participants only; a
+  truthy `encrypted` together with `Ingress: true` is a 400. Traffic the
+  routing mesh relays between nodes therefore stays in cleartext — TLS inside
+  the containers is the answer when that matters.
+- **No encryption on `bridge` networks**, and none needed: bridge traffic never
+  leaves the node, so there is nothing on the wire to protect.
+- **No cluster-wide default.** Encryption is per network, chosen at creation
+  (there is no network-update route), so a cluster can mix encrypted and
+  cleartext overlays — the unencrypted ones stay on UDP 4789 in cleartext.
+- **No encryption mid-upgrade.** Do not create encrypted networks while a
+  rolling manager upgrade is in progress: a manager running the old build
+  silently strips the encryption fields off the network object. Every manager
+  must run the new build first.
+
+**What to do for everything else.** Whatever does not cross the overlay —
+client-to-published-port traffic, most obviously — is not covered by any of
+this. Run the underlay on a private network you control, and put TLS inside
+the containers for anything that needs confidentiality end to end.
 
 ## Metrics are opt-in { #no-metrics }
 

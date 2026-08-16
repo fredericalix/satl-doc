@@ -32,7 +32,11 @@ pid, without disturbing running containers.
 unicast VXLAN with a Raft-distributed forwarding table, static ARP programmed
 into each jail's VNET, and an embedded per-node DNS responder giving DNS
 round-robin service discovery scoped to the querying task's networks. The
-overlay MTU is derived from the measured underlay rather than assumed.
+overlay MTU is derived from the measured underlay rather than assumed. An
+overlay can opt into **data-plane encryption** with `--opt encrypted`: the
+VXLAN datagrams cross the underlay as IPsec ESP (AES-128-GCM) on a dedicated
+port, with keys the cluster generates and rotates itself — see
+[Networks](../use/networks.md#encrypted).
 
 **Published ports**, allocated cluster-wide, and a **routing mesh**: every
 *manager* answers on the port, whether or not it runs a replica — pf redirects
@@ -109,7 +113,6 @@ in particular the part about how many managers to run.
 | **Packages** | No FreeBSD port and no `pkg install satl` from the official repos — but `make package` builds a `.pkg` you install with `pkg add`, no repository needed. |
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
-| **Data-plane encryption** | The control plane is mTLS everywhere; the VXLAN overlay is not encrypted. Run the underlay on a private network. |
 
 There is a longer, more precise list of things that are deliberately out of
 scope — and why — in the [reference](../reference/out-of-scope.md).

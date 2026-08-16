@@ -117,6 +117,8 @@ from what the store and the local task database agree on.
    control plane : 2377/tcp  mTLS  (raft, control, dispatcher, NodeCA, health)
    CA bootstrap  : 2378/tcp  plain (a joiner has no certificate yet)
    overlay data  : 4789/udp  VXLAN, unicast, static forwarding table
+                   (a network created with --opt encrypted moves to a dedicated
+                   port from 4790-4999 and crosses the wire as IPsec ESP)
 ```
 
 Three properties of that picture are load-bearing:

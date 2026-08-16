@@ -48,6 +48,7 @@ $ satl network create [OPTIONS] <NETWORK>
 | <code>--subnet &lt;CIDR&gt;</code> | Subnet in CIDR format representing a network segment |
 | <code>--gateway &lt;IP&gt;</code> | IPv4 gateway for the master subnet |
 | <code>--label &lt;KEY=VALUE&gt;</code> | Set metadata on a network |
+| <code>--opt &lt;KEY=VALUE&gt;</code> | Driver options (`encrypted` is the only one SatL reads, overlay only) |
 
 ## `satl network inspect` { #satl-network-inspect }
 

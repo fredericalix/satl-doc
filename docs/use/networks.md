@@ -108,8 +108,9 @@ satl service create --name api --network backend registry.example.com/api:1
 
 [`satl network`](../reference/cli/network.md#satl-network) has `ls`, `create`,
 `inspect` and `rm`, and that is the complete list. `--driver`, `--subnet`,
-`--gateway` and `--label` are the create options; `--attachable`, `--internal`,
-`--ipv6`, `--opt` and `--aux-address` are absent from the CLI rather than
+`--gateway`, `--label` and `--opt` are the create options — and `--opt` accepts
+exactly one key, `encrypted`, which is the next section. `--attachable`,
+`--internal`, `--ipv6` and `--aux-address` are absent from the CLI rather than
 accepted and refused, because none of them can be honoured.
 
 `SCOPE` is a consequence of the driver, never a separate choice: `overlay` is
@@ -120,7 +121,8 @@ accepted and refused, because none of them can be honoured.
 Networks are IPv4 only. `EnableIPv6` and any IPv6 subnet are refused, as are
 `Internal` (every SatL network has egress through the node's NAT anchor),
 `Attachable` (every container is already a task of a service), `ConfigOnly` and
-`ConfigFrom`, driver options, and a second `ingress` network.
+`ConfigFrom`, driver options other than `encrypted`, and a second `ingress`
+network.
 
 An overlay network also carries a `Vni`, the VXLAN network identifier the
 allocator assigned — a SatL field, present on overlay networks and absent on
@@ -132,6 +134,83 @@ bridge networks and before allocation.
     services can reference, but tasks attach to the node's own bridge rather
     than to a bridge of their own. If you want traffic actually separated between
     services, that is an overlay network.
+
+## Encrypting an overlay network { #encrypted }
+
+```sh
+satl network create -d overlay --opt encrypted backend
+```
+
+That encrypts the network's data plane: the VXLAN datagrams it sends between
+nodes are wrapped in IPsec ESP, transport mode, AES-128-GCM, by the kernel. A
+passive observer on the underlay sees ESP (IP protocol 50), not VXLAN, and an
+active one cannot inject cleartext — a `satl/guard` pf anchor on each node
+drops it. A bare `--opt encrypted` and `--opt encrypted=true` are the same
+thing (the CLI normalizes the bare spelling); `--opt encrypted=false` is a
+no-op. `inspect` reports it in the driver options:
+
+```console
+$ satl network inspect backend
+[
+    {
+        "Name": "backend",
+        "Driver": "overlay",
+        ...
+        "Options": {
+            "encrypted": "true"
+        },
+        ...
+    }
+]
+```
+
+Encryption is chosen **at creation and per network** — there is no
+network-update route — so a cluster can mix encrypted and cleartext overlays.
+It is refused on `bridge` networks and on `ingress` (a truthy `encrypted`
+there is a 400): bridge traffic never leaves its node, so there is nothing to
+encrypt, and every node holds an ingress assignment, so an encrypted ingress
+network would ship its keyring cluster-wide. Compose files have no spelling
+for it yet — create the encrypted network up front and reference it as
+[`external`](compose.md).
+
+**There are no keys to manage.** The cluster generates each encrypted network's
+keyring itself, keeps it in the encrypted Raft store, delivers it only to
+nodes that run tasks of that network — a node participating in no encrypted
+network holds no key material at all — and rotates every ring every 12 hours
+with no operator action. No certificates are involved; the control plane's
+mTLS already existed and is unchanged. Each encrypted network also gets its
+own VTEP UDP port from **4790–4999** (unencrypted networks share 4789, in
+cleartext), which is what keeps two encrypted networks' keyrings apart on the
+wire.
+
+**What it costs.** ESP adds 34 bytes to every packet on top of VXLAN's 50
+(measured), so an encrypted overlay's MTU is **underlay − 84 — 1416 on a 1500
+underlay** — and every packet is encrypted and authenticated on both ends,
+which is a non-negligible throughput penalty. That cost is exactly why
+encryption is opt-in per network rather than a cluster flag — the same posture
+Docker takes with its own `--opt encrypted`.
+
+**What is not protected.** Unencrypted overlays (cleartext on 4789), bridge
+networks, the `ingress` network, and everything off the overlay path —
+client-to-published-port traffic most obviously. Put TLS inside the containers
+for anything that needs confidentiality end to end.
+
+**Between the nodes**, the firewall must allow ESP (IP protocol 50) in
+addition to 4789/udp — no UDP crosses on 4790–4999, ever; see
+[Ports and firewall](../reference/ports.md#encrypted-vxlan). The node-side
+plumbing (the guard anchor, `enc0`, one node-wide sysctl) is installed by
+`satld` itself and needs nothing from you.
+
+!!! warning "Do not create encrypted networks during a rolling manager upgrade"
+
+    The encryption fields ride on the network object in the Raft store, and a
+    manager running an older build strips them when it rewrites the object —
+    every node then reads "not encrypted" and tears its SAs down: a silent
+    downgrade to cleartext, with no error anywhere. Finish the rolling upgrade
+    on **every manager** before creating the first encrypted network. An
+    old-build worker shipped an encrypted network fails closed instead: it
+    builds its VTEP on the default port and blackholes until restarted on the
+    new build.
 
 ## There is no `bridge`, `host` or `none`
 

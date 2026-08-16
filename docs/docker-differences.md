@@ -157,8 +157,15 @@ Everything below is organised by what you are trying to do.
   you named.
 - Rejected with `400` rather than accepted and ignored: `EnableIPv6` and any
   IPv6 subnet, `Internal`, `Attachable`, `ConfigOnly`/`ConfigFrom`, any driver
-  option map, `IPAM.Options`, more than one IPAM config entry, and a second
-  `ingress` network.
+  option other than `encrypted`, `IPAM.Options`, more than one IPAM config
+  entry, and a second `ingress` network. `encrypted` — Docker's `--opt
+  encrypted` — is the one driver option SatL reads, and only on the `overlay`
+  driver: `{"encrypted": "true"}` encrypts the VXLAN data plane between nodes
+  (see [Networks](use/networks.md#encrypted)), `"false"` is accepted and means
+  no encryption, and any other value is a `400` — as is a truthy `encrypted`
+  on a `bridge` network or on `ingress`. The `satl` CLI also normalizes a bare
+  `--opt encrypted` (no `=value`) to `encrypted=true`, matching Docker muscle
+  memory; a raw API client sending an empty value still gets the `400`.
 - **Removing a network in use is a `409`**, and "in use" includes a service whose
   task template merely references it — its next task could not be placed.
   Terminal tasks do not block removal, where Docker counts a stopped container's
@@ -398,8 +405,8 @@ Answered as `404 page not found` rather than half-implemented: `attach`,
 `stats`, `changes`, `archive`, and `build` — SatL builds images client-side
 with [`satl build`](use/images.md#satl-build), not in the daemon.
 
-Beyond the API: no daemon-side image build, no IPv6, no overlay
-data-plane encryption, no automatic or cluster-wide
+Beyond the API: no daemon-side image build, no IPv6, no automatic or
+cluster-wide
 reclamation, and no way to repair a cluster that has permanently lost quorum.
 Those and their consequences are on their own page — [What SatL does not
 do](reference/out-of-scope.md) — because several of them have operational costs

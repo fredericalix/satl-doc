@@ -11,14 +11,18 @@ network.
 | **2377** | TCP | every manager | other nodes in the cluster | **mutual TLS** against the cluster root |
 | **2378** | TCP | every manager | a node that is joining, once | **none** — see [below](#the-bootstrap-port) |
 | **4789** | UDP | every node with an overlay task | other nodes in the cluster | none (VXLAN) |
+| **4790–4999** | UDP | every node with an **encrypted** overlay task | other nodes in the cluster | IPsec ESP — see [below](#encrypted-vxlan) |
+| — | ESP (IP proto 50) | same | same | the ESP flow itself |
 | `/var/run/satl.sock` | unix | every node | local operators and tooling | filesystem permissions (`0660`) |
 
 Published container ports are separate and are whatever your services ask for,
 plus the dynamic ingress range **30000–32767** for ports the allocator assigns.
+The last two rows exist only once a network is created with `--opt encrypted`;
+a cluster with no encrypted networks needs neither of them.
 
-**Nothing in this list needs to be reachable from the internet.** 2377, 2378 and
-4789 belong on the cluster's private network; the API socket is a unix socket and
-is not on the network at all.
+**Nothing in this list needs to be reachable from the internet.** 2377, 2378,
+4789 and the encrypted-overlay range belong on the cluster's private network;
+the API socket is a unix socket and is not on the network at all.
 
 ## 2377/TCP — the internal mTLS listener { #mtls }
 
@@ -86,22 +90,56 @@ Two consequences worth writing on the firewall ticket:
 
 ## 4789/UDP — VXLAN { #vxlan }
 
-- The overlay data plane. One UDP socket per node, shared by every overlay
-  network on it: several VXLAN interfaces with the same local address and
+- The overlay data plane. One UDP socket per node, shared by every unencrypted
+  overlay network on it: several VXLAN interfaces with the same local address and
   different VNIs all use it, each keeping an independent forwarding table.
+  (Encrypted networks bind their own ports — see [below](#encrypted-vxlan).)
 - **Unicast only.** SatL programs the forwarding tables from its own cluster
   state and never uses multicast, so no multicast routing or IGMP snooping is
   required of the fabric.
-- **Not encrypted.** VXLAN carries the container traffic as it is. Run the
-  underlay on a private network you trust, or accept that container-to-container
-  traffic between nodes is in the clear.
+- **Cleartext, unless the network opts in.** An ordinary overlay carries the
+  container traffic as it is on this port. A network created with `--opt
+  encrypted` never uses 4789 at all: its VTEPs bind a dedicated port from
+  **4790–4999** and its datagrams cross the underlay as ESP — see
+  [below](#encrypted-vxlan) and [Networks](../use/networks.md#encrypted).
 - **The MTU matters more than usual.** VXLAN over IPv4 costs **50 bytes**; SatL
-  sets the overlay MTU to the measured underlay MTU minus 50. A path that drops
+  sets the overlay MTU to the measured underlay MTU minus 50 (minus 84 on an
+  encrypted network, where ESP takes another 34). A path that drops
   IP fragments turns a wrong MTU from a throughput problem into a hang — see
   [the overlay troubleshooting page](../trouble/overlay.md#fragmentation).
 - The module is not in the GENERIC kernel. `satld` runs `kldload -n if_vxlan`
   itself, but `if_vxlan_load="YES"` in `/boot/loader.conf` makes a failure
   surface at boot rather than on the first overlay network.
+
+## 4790–4999/UDP and ESP — encrypted overlays { #encrypted-vxlan }
+
+This range is silent until someone runs `satl network create -d overlay --opt
+encrypted`; the how and why of the feature itself is on
+[Networks](../use/networks.md#encrypted). What the network side of it looks
+like:
+
+- **One port per encrypted network**, allocator-assigned from 4790–4999, not
+  the shared 4789. The port is the only per-network selector the kernel's
+  IPsec policy database can match on FreeBSD, so it is what keeps two encrypted
+  networks' keyrings apart. 210 ports is generous against the number of
+  encrypted networks a cluster will have.
+- **On the wire it is ESP, not VXLAN.** The VXLAN datagram is wrapped in ESP
+  transport mode (AES-128-GCM), so a capture between two nodes shows IP
+  protocol 50. A firewall between nodes must pass **ESP** in
+  addition to 4789/udp if encrypted networks are in use — and only then. No
+  legitimate UDP ever crosses on 4790–4999: the sender's security policy
+  encrypts or drops, and each node's own guard drops cleartext arriving on
+  those ports.
+- **Cleartext on those ports is dropped, by pf.** The SPD on its own does not
+  fail closed inbound on FreeBSD, so `satld` loads a `satl/guard` anchor —
+  block the range on the underlay, pass decapsulated packets on `enc0` — on the
+  first encrypted network a node hosts, and flushes it when the last one
+  leaves. `pfctl -a satl/guard -sr` shows the live rules and their counters.
+  Making `enc0` presentation work needs `net.enc.in.ipsec_filter_mask=2`, which
+  `satld` sets node-wide, once, and deliberately never restores.
+- **ESP costs 34 bytes per packet** (measured), which is why an encrypted
+  overlay's MTU is underlay − 84 — 1416 on a 1500 underlay — rather than the
+  cleartext underlay − 50.
 
 ## The API socket { #socket }
 
@@ -155,12 +193,14 @@ service pf start          # or: kldload pf && pfctl -f /etc/pf.conf && pfctl -e
 | --- | --- | --- |
 | `satl/nat` | `nat on <egress> inet from <subnet> to any -> (<egress>)` | container egress. The parentheses make pf re-evaluate the interface's address, so the rule survives a DHCP renewal or an interface that comes up later |
 | `satl/rdr` | `rdr pass inet proto {tcp\|udp} from any to any port <host> -> <task ip> port <container>` | one per published port on this node. Several tasks of one service on one node share **one** rule with a `round-robin` address pool |
+| `satl/guard` | `block in log quick on <underlay> proto udp from any to any port 4790:4999`, plus `pass in quick on enc0 ... no state` | drops cleartext aimed at the encrypted-overlay ports; ESP-decapsulated packets arrive on `enc0` and pass. Loaded on the first encrypted network the node hosts, flushed when the last one leaves |
 
 Read them back with:
 
 ```sh
 pfctl -a satl/nat -s nat
 pfctl -a satl/rdr -s nat
+pfctl -a satl/guard -sr
 pfctl -a 'satl/*' -s all
 ```
 
@@ -202,6 +242,7 @@ published on the public interface:
 | every node's private address | every manager's private address | 2377/tcp | Raft, dispatcher, control, NodeCA |
 | a joining node's private address | one manager's private address | 2378/tcp | first-contact bootstrap (only while joining) |
 | every node's private address | every node's private address | 4789/udp | VXLAN overlay |
+| every node's private address | every node's private address | ESP (proto 50) | only with `--opt encrypted` networks — [see above](#encrypted-vxlan) |
 | the internet, or your load balancer | every node's public address | the published ports | your services |
 | your workstation | every node | 22/tcp | operations |
 

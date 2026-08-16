@@ -17,7 +17,7 @@ be turned on at runtime at all.
 | **Three anchor lines in `/etc/pf.conf`** | SatL only ever writes inside `satl/*`, and an anchor that is not declared is never evaluated. | The daemon loads its rules into anchors nothing consults. Everything looks fine and nothing works. |
 | **`kern.racct.enable=1` in `/boot/loader.conf`, then a reboot** | Resource accounting is a boot-time tunable; `rctl(8)` rules cannot be installed without it. | `--memory` and `--cpus` are **accepted and silently not enforced**. `satld` warns at startup; nothing else complains, ever. |
 | **IP forwarding** — `gateway_enable=YES` | Container traffic is *routed* between the bridge and the egress interface. | Containers have **no outbound connectivity**, while inbound published ports still answer — which is the most misleading failure mode in the whole system. |
-| **Ports 2377/tcp, 2378/tcp, 4789/udp between nodes** | Only if you will cluster. 2377 is the mTLS control plane, 2378 the CA bootstrap a first-time joiner needs, 4789 the VXLAN data plane. | Joins hang or fail; overlay traffic goes nowhere while every interface reports itself healthy. |
+| **Ports 2377/tcp, 2378/tcp, 4789/udp between nodes** | Only if you will cluster. 2377 is the mTLS control plane, 2378 the CA bootstrap a first-time joiner needs, 4789 the VXLAN data plane. If you will also use [encrypted overlays](../use/networks.md#encrypted): ESP (IP protocol 50) as well — no UDP on 4790–4999. | Joins hang or fail; overlay traffic goes nowhere while every interface reports itself healthy. |
 
 ## ZFS: what "mandatory" means
 

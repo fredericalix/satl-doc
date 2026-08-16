@@ -59,7 +59,8 @@ differs, the row says so.
 | Overlay address pool / subnet size | **`10.100.0.0/14`** / **`/24`** | one subnet per overlay network |
 | Overlay gateway | **`.1` is reserved and given to nobody** | each participating node gets its own gateway address from the subnet |
 | VXLAN UDP port | **4789** | see [Ports and firewall](ports.md#vxlan) |
-| Overlay MTU | **underlay MTU − 50** | measured, never assumed. 1450 on a 1500 underlay |
+| Encrypted-overlay VTEP ports | **4790–4999**, one per encrypted network | only networks created with `--opt encrypted`; the datagrams there are ESP, not cleartext VXLAN — see [Ports and firewall](ports.md#encrypted-vxlan) |
+| Overlay MTU | **underlay MTU − 50** | measured, never assumed. 1450 on a 1500 underlay; **underlay − 84** (1416) on an encrypted network, where ESP adds 34 bytes |
 | Ingress dynamic port range | **30000–32767** | what a published port of `0` is assigned from. One cluster-wide owner per `(protocol, published port)`, sticky across updates |
 | `pf_mode` | **`check`** | generate and syntax-check only — **published ports are not redirected until this is `enforce`** |
 

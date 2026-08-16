@@ -42,6 +42,8 @@ $ satl service create [OPTIONS] <IMAGE> [COMMAND]...
 | <code>--placement-pref &lt;PREF&gt;</code> | Soft placement preference (`spread=node.labels.zone`); repeatable, applied in order |
 | <code>--limit-cpu &lt;VALUE&gt;</code> | Limit CPUs |
 | <code>--limit-memory &lt;BYTES&gt;</code> | Limit memory |
+| <code>--reserve-cpu &lt;VALUE&gt;</code> | Reserve CPUs |
+| <code>--reserve-memory &lt;BYTES&gt;</code> | Reserve memory |
 | <code>--restart-condition &lt;CONDITION&gt;</code> | Restart when a condition is met<br>Values: <code>none</code>, <code>on-failure</code>, <code>any</code> |
 | <code>--network &lt;NETWORK&gt;</code> | Network attachments |
 | <code>--secret &lt;SECRET&gt;</code> | Give the tasks a secret, delivered as one file: NAME, or source=NAME[,target=FILE][,uid=UID][,gid=GID][,mode=0444] |
@@ -205,9 +207,9 @@ Derived mechanically from the two commands' own `--help`, with the update and ro
 
 | Accepted by | Options |
 | --- | --- |
-| both | <code>--limit-cpu</code>, <code>--limit-memory</code>, <code>--replicas</code> |
+| both | <code>--limit-cpu</code>, <code>--limit-memory</code>, <code>--replicas</code>, <code>--reserve-cpu</code>, <code>--reserve-memory</code> |
 | <code>satl service create</code> only | <code>--config</code>, <code>--constraint</code>, <code>--env</code>, <code>--label</code>, <code>--max-concurrent</code>, <code>--mode</code>, <code>--name</code>, <code>--network</code>, <code>--placement-pref</code>, <code>--publish</code>, <code>--restart-condition</code>, <code>--secret</code>, <code>--total-completions</code>, <code>&lt;IMAGE&gt;</code>, <code>[COMMAND]...</code> |
-| <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>--placement-pref-add</code>, <code>--placement-pref-rm</code>, <code>--reserve-cpu</code>, <code>--reserve-memory</code>, <code>&lt;SERVICE&gt;</code> |
+| <code>satl service update</code> only | <code>--constraint-add</code>, <code>--constraint-rm</code>, <code>--image</code>, <code>--label-add</code>, <code>--label-rm</code>, <code>--placement-pref-add</code>, <code>--placement-pref-rm</code>, <code>&lt;SERVICE&gt;</code> |
 
 A set difference cannot see that two differently-named options do the same job. These pairings are asserted by hand in `overlay/cli.yml`:
 

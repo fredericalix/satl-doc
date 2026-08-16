@@ -245,7 +245,7 @@ port, so `advertise_addr = "10.2.0.4"` means `10.2.0.4:2377`.
     logged with a warning, because a wrong one does not fail loudly: the tunnel
     comes up, reports `RUNNING`, and carries nothing.
 
-## Two keys you will probably never set
+## The keys you will probably never set
 
 `overlay_blackhole` overrides the address every VXLAN tunnel on this node is
 given as its default remote. It must be an address nothing answers on, because
@@ -260,8 +260,19 @@ in minutes instead of weeks. Values under an hour draw a loud startup warning
 and values under a minute are refused at load. The production setting is to omit
 the key entirely, which means 90 days.
 
-Neither key appears in the shipped `satld.toml.sample`; both are in the
-[reference](../reference/satld-toml.md), which is checked against the daemon's
+`keyring_rotate_after_secs` and `keyring_phase_settle_secs` (defaults `43200`
+and `60`, plain seconds) set the cadence of the encrypted-overlay keyring that
+[`--opt encrypted`](../use/networks.md#encrypted) networks run on: how old a
+network's keyring may get before the leader rotates it, and how long the settle
+between the rotation's phases lasts. **They exist to test key rotation** —
+shorten them and a test watches a full rotation in minutes instead of twelve
+hours. A zero rotation interval, or a settle time that does not fit below it,
+is refused at load, and any non-default value draws a loud startup warning.
+Never set them on a real cluster.
+
+`overlay_blackhole` and `cert_validity` do not appear in the shipped
+`satld.toml.sample`; the keyring pair does, commented out. All of them are in
+the [reference](../reference/satld-toml.md), which is checked against the daemon's
 own accepted key set on every build of this site.
 
 ## Changing it

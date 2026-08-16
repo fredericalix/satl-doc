@@ -105,3 +105,12 @@
 # it to a private address reachable by the Prometheus server and nothing else
 # (docs/operations.md).
 #metrics_addr = "10.2.0.4:9323"
+
+# TESTING knobs (docs/operations.md): the encrypted-overlay keyring's cadence,
+# in plain seconds. The defaults below are production (Docker's 12h rotation,
+# 60s between phases); shortening them lets a test watch a full rotation in
+# minutes. A non-default value draws a loud startup warning. Never set these
+# on a real cluster. Refused at load: a zero rotation interval, and a settle
+# time that does not fit below the rotation interval.
+#keyring_rotate_after_secs = 43200
+#keyring_phase_settle_secs = 60

@@ -17,7 +17,7 @@ Default location: `/usr/local/etc/satl/satld.toml`. Point `satld` elsewhere with
 
 !!! warning "The shipped sample is not the whole list"
 
-    [`satld.toml.sample`](satld.toml.sample) documents 12 of the 14 keys.
+    [`satld.toml.sample`](satld.toml.sample) documents 14 of the 16 keys.
     `cert_validity` and `overlay_blackhole` are absent from it. That gap is
     exactly the class of drift this page and its check exist to close.
 
@@ -108,6 +108,21 @@ endpoint is **off when neither is set**. Unauthenticated, exactly like
 dockerd's: bind a private address reachable by the Prometheus server and
 nothing else. The scrape reveals cluster shape, task ids and per-task resource
 usage. See [Metrics](../use/metrics.md).
+
+### `keyring_rotate_after_secs`
+
+How old an encrypted overlay network's keyring may get before the leader
+rotates it, in plain seconds (default `43200` — Docker's 12 h). **A testing
+knob**: shortening it lets a test watch a full rotation in minutes. A zero
+value is refused at load, and any non-default value draws a loud startup
+warning.
+
+### `keyring_phase_settle_secs`
+
+The settle between a keyring rotation's phases, in plain seconds (default
+`60`). Refused at load when it does not fit below `keyring_rotate_after_secs`;
+a non-default value draws the same startup warning. Never set either keyring
+knob on a real cluster.
 
 ## The shipped sample
 

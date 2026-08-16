@@ -5,7 +5,8 @@ jails through [ocijail](https://github.com/dfr/ocijail), stores image layers as
 ZFS datasets, wires containers with `if_bridge`, `epair` and `pf`, and carries
 the orchestration inside the daemon rather than beside it: an embedded Raft
 store, a scheduler, desired-state reconciliation, a VXLAN overlay with service
-discovery, and mTLS between nodes with a certificate authority of its own. The
+discovery and optional per-network encryption, and mTLS between nodes with a
+certificate authority of its own. The
 surface is Docker's — the `satl` CLI speaks the verbs you already know, and
 `satld` serves the Docker Engine REST API on `/var/run/satl.sock`, so the
 `docker` CLI works against it unchanged.
