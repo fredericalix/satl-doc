@@ -1,27 +1,20 @@
 # Images
 
-SatL pulls OCI images from any registry that speaks the distribution API, and
-turns their layers into ZFS datasets. It can also **build** FreeBSD images
-itself, with `satl build` and a `Satlfile` — the pkg-shaped subset of a
-Dockerfile, covered [below](#satl-build).
+SatL pulls OCI images from any registry that speaks the distribution API, and turns their layers into ZFS datasets.
+It can also **build** FreeBSD images itself, with `satl build` and a `Satlfile` — the pkg-shaped subset of a Dockerfile, covered [below](#satl-build).
 
 ```sh
 satl pull registry.example.com/nginx:1
 satl images
 ```
 
-A `satl run` or `satl service create` pulls on its own when the image is missing,
-so an explicit `pull` is mostly for warming a node or for checking that a
-registry and a reference work before you wire them into a service.
+A `satl run` or `satl service create` pulls on its own when the image is missing, so an explicit `pull` is mostly for warming a node or for checking that a registry and a reference work before you wire them into a service.
 `satl run --pull always|missing|never` controls that (default `missing`).
 
 ## References
 
-References are normalised the way the Docker CLI normalises them: `nginx`
-becomes `docker.io/library/nginx:latest`, `alpine:3` becomes
-`docker.io/library/alpine:3`, and anything with a host component is left alone.
-An image is identified by its manifest digest, so `satl images` shows that digest
-as the `IMAGE ID` — there is no separate content id, and no parent chain:
+References are normalised the way the Docker CLI normalises them: `nginx` becomes `docker.io/library/nginx:latest`, `alpine:3` becomes `docker.io/library/alpine:3`, and anything with a host component is left alone.
+An image is identified by its manifest digest, so `satl images` shows that digest as the `IMAGE ID` — there is no separate content id, and no parent chain:
 
 ```console
 $ satl images
@@ -32,15 +25,14 @@ REPOSITORY                               TAG      IMAGE ID       CREATED        
 
 !!! note "Old images show the epoch as `CREATED`"
 
-    Images pulled or built before the timestamp was read (pre-M7a) have no
-    creation time recorded, and `/images/json` reports `Created: 0` — rendered
-    as "56 years ago". Anything pulled or built since carries its real date.
+    Images pulled or built before the timestamp was read (pre-M7a) have no creation time recorded, and `/images/json` reports `Created: 0` — rendered as "56 years ago".
+    Anything pulled or built since carries its real date.
     `SIZE` and `PLATFORM` are real either way.
 
 ## Which platform you get
 
-An image reference usually points at an index (a manifest list) covering several
-platforms. SatL picks one, in this order:
+An image reference usually points at an index (a manifest list) covering several platforms.
+SatL picks one, in this order:
 
 1. the platform you asked for with `--platform os/arch[/variant]`, which must
    exist in the index;
@@ -53,50 +45,41 @@ no matching platform for freebsd/amd64, linux/amd64 (emulation) in
 registry.example.com/app:1; available: [linux/arm64, linux/ppc64le]
 ```
 
-The selected platform is not an implementation detail, because it decides whether
-the task runs as a native jail or under Linux emulation — so it is a column of
-its own in both `satl images` and `satl ps`. `--platform` takes `os/arch` or
-`os/arch/variant`; the variant is accepted and ignored, and a single component
-(`--platform linux`) is refused where Docker would infer the rest.
+The selected platform is not an implementation detail, because it decides whether the task runs as a native jail or under Linux emulation — so it is a column of its own in both `satl images` and `satl ps`.
+`--platform` takes `os/arch` or `os/arch/variant`; the variant is accepted and ignored, and a single component (`--platform linux`) is refused where Docker would infer the rest.
 
-Selecting `linux/amd64` has consequences beyond the image itself — what the host
-must have loaded, the mounts the jail is given, and the handful of Linux kernel
-features that are simply absent. [Linux containers](linux-containers.md) is the
-page for all of it.
+Selecting `linux/amd64` has consequences beyond the image itself — what the host must have loaded, the mounts the jail is given, and the handful of Linux kernel features that are simply absent.
+[Linux containers](linux-containers.md) is the page for all of it.
 
 ## Registries
 
-Every registry is contacted over HTTPS, using rustls. There is one exception and
-no override:
+Every registry is contacted over HTTPS, using rustls.
+There is one exception and no override:
 
 !!! warning "Plain HTTP works for loopback registries only"
 
-    `localhost`, `127.0.0.1` and `[::1]` — on any port — are reachable over
-    plain HTTP, because that is what a local test registry needs. **Every other
-    host is HTTPS, and there is no insecure-registry setting.** An explicit
-    HTTP reference to anything else is refused:
+    `localhost`, `127.0.0.1` and `[::1]` — on any port — are reachable over plain HTTP, because that is what a local test registry needs.
+    **Every other host is HTTPS, and there is no insecure-registry setting.**
+    An explicit HTTP reference to anything else is refused:
 
     ```
     refusing plain-HTTP registry "registry.internal:5000": only localhost/127.0.0.1
     may be contacted without TLS
     ```
 
-    There is no `satld.toml` key and no daemon flag that changes this. A
-    registry on your own network needs a certificate the node trusts.
+    There is no `satld.toml` key and no daemon flag that changes this.
+    A registry on your own network needs a certificate the node trusts.
 
-Transient failures — connection errors and 5xx responses — are retried three
-times with a doubling backoff. Every blob and manifest is verified against its
-digest as it is written, so a corrupted transfer fails rather than being stored.
+Transient failures — connection errors and 5xx responses — are retried three times with a doubling backoff.
+Every blob and manifest is verified against its digest as it is written, so a corrupted transfer fails rather than being stored.
 
 ## Authentication
 
-Credentials travel per request, in Docker's `X-Registry-Auth` header, and
-**nothing is persisted by the daemon**. There is no credential store, no
-`~/.satl/config.json`, and — deliberately — no place a stolen node disk gives up
-a registry password.
+Credentials travel per request, in Docker's `X-Registry-Auth` header, and **nothing is persisted by the daemon**.
+There is no credential store, no `~/.satl/config.json`, and — deliberately — no place a stolen node disk gives up a registry password.
 
-`satl` itself has no `login` verb. The practical paths to a private registry
-are:
+`satl` itself has no `login` verb.
+The practical paths to a private registry are:
 
 ```sh
 # a Docker CLI pointed at SatL's socket carries its own ~/.docker/config.json
@@ -109,22 +92,16 @@ curl -s --unix-socket /var/run/satl.sock -X POST \
      'http://localhost/images/create?fromImage=registry.example.com/private/app&tag=1'
 ```
 
-The header is accepted in standard or URL-safe base64, padded or not. Bearer
-token challenges (`WWW-Authenticate: Bearer`) are negotiated automatically;
-registries that answer a `Basic` challenge get the credentials directly.
+The header is accepted in standard or URL-safe base64, padded or not.
+Bearer token challenges (`WWW-Authenticate: Bearer`) are negotiated automatically; registries that answer a `Basic` challenge get the credentials directly.
 
 !!! warning "Credentials reach an explicit pull, and not a task's own pull"
 
-    `X-Registry-Auth` is honoured on `POST /images/create` — the explicit pull
-    above, and the one `satl pull` performs. It is **accepted and then dropped**
-    on `POST /containers/create` and `POST /services/create`: the task's spec
-    carries no pull options, so when a node has to fetch the image itself, it
-    fetches it anonymously.
+    `X-Registry-Auth` is honoured on `POST /images/create` — the explicit pull above, and the one `satl pull` performs.
+    It is **accepted and then dropped** on `POST /containers/create` and `POST /services/create`: the task's spec carries no pull options, so when a node has to fetch the image itself, it fetches it anonymously.
 
-    In practice: a service on a private registry works only if the image is
-    already present on every node that might run it. Pull it there first
-    (`satl pull` on each node, with credentials), or push it to a registry the
-    nodes can read without authenticating.
+    In practice: a service on a private registry works only if the image is already present on every node that might run it.
+    Pull it there first (`satl pull` on each node, with credentials), or push it to a registry the nodes can read without authenticating.
 
 ## Building a FreeBSD image: `satl build` { #satl-build }
 
@@ -142,27 +119,18 @@ ENTRYPOINT ["/usr/local/bin/postgres", "-D", "/var/db/postgres/data"]
 sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-postgres:latest
 ```
 
-The verbs are `FROM` (one or several, or `scratch`), `PKG`, `COPY`, `RUN`,
-`ENV`, `LABEL`, `WORKDIR`, `EXPOSE`, and exec-form `ENTRYPOINT`/`CMD`. The
-shell form of `ENTRYPOINT` is refused — it would promise a shell the image
-may not have.
+The verbs are `FROM` (one or several, or `scratch`), `PKG`, `COPY`, `RUN`, `ENV`, `LABEL`, `WORKDIR`, `EXPOSE`, and exec-form `ENTRYPOINT`/`CMD`.
+The shell form of `ENTRYPOINT` is refused — it would promise a shell the image may not have.
 
-`COPY` reads from the **build context — the Satlfile's own directory**:
-sources are context-relative, and `..`, absolute paths and symlink escapes
-are refused. A directory source copies its *contents*, as Docker's COPY does;
-a relative destination resolves against `WORKDIR`. `RUN` executes
-`/bin/sh -c` **in a chroot of the assembled rootfs**, with the Satlfile's
-`ENV` and `WORKDIR` — on the build host's kernel, so build on the FreeBSD
-major you deploy. All `PKG` steps run before the first `COPY`/`RUN` (a
-package must be installed before a step can use it); the rest execute in
-file order.
+`COPY` reads from the **build context — the Satlfile's own directory**: sources are context-relative, and `..`, absolute paths and symlink escapes are refused.
+A directory source copies its *contents*, as Docker's COPY does; a relative destination resolves against `WORKDIR`.
+`RUN` executes `/bin/sh -c` **in a chroot of the assembled rootfs**, with the Satlfile's `ENV` and `WORKDIR` — on the build host's kernel, so build on the FreeBSD major you deploy.
+All `PKG` steps run before the first `COPY`/`RUN` (a package must be installed before a step can use it); the rest execute in file order.
 
 ## `FROM scratch` and multi-stage builds
 
 `FROM scratch` is the empty base — the image is exactly its step layers.
-Several `FROM` lines define several **stages**, named with `AS` (or addressed
-by index); every stage builds fully, and only the last one is repacked into
-the image — so the toolchain stays behind in the builder stage:
+Several `FROM` lines define several **stages**, named with `AS` (or addressed by index); every stage builds fully, and only the last one is repacked into the image — so the toolchain stays behind in the builder stage:
 
 ```text
 FROM freebsd-runtime:15.1 AS builder
@@ -175,11 +143,8 @@ COPY --from=builder /src/out /usr/local/bin/out
 ENTRYPOINT ["/usr/local/bin/out"]
 ```
 
-`COPY --from=<stage>` reads the earlier stage's finished rootfs, with the
-same escape guards as context sources, and it is cache-keyed on the copied
-content — a changed builder output invalidates the final stage. Copying out
-of an image (`--from=registry/x:1`) is refused plainly: name or index a
-stage instead.
+`COPY --from=<stage>` reads the earlier stage's finished rootfs, with the same escape guards as context sources, and it is cache-keyed on the copied content — a changed builder output invalidates the final stage.
+Copying out of an image (`--from=registry/x:1`) is refused plainly: name or index a stage instead.
 
 ```text
 FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
@@ -190,27 +155,18 @@ EXPOSE 8080/tcp
 ENTRYPOINT ["/usr/local/bin/node", "/srv/app/server.js"]
 ```
 
-What the build does: pulls the base into the local store, unpacks its layers,
-`pkg --rootdir install` for each `PKG`, bakes `/var/run/ld-elf.so.hints` with
-`ldconfig` (a jail never runs `rc`; without the hints, pkg-installed binaries
-die on missing shared objects), runs the COPY/RUN steps, and repacks a
-`freebsd/amd64` OCI image. It runs **on the daemon's host, as
-root**, against the local content store — this is not Docker's `POST /build`,
-which does not exist here and answers `404`.
+What the build does: pulls the base into the local store, unpacks its layers, `pkg --rootdir install` for each `PKG`, bakes `/var/run/ld-elf.so.hints` with `ldconfig` (a jail never runs `rc`; without the hints, pkg-installed binaries die on missing shared objects), runs the COPY/RUN steps, and repacks a `freebsd/amd64` OCI image.
+It runs **on the daemon's host, as root**, against the local content store — this is not Docker's `POST /build`, which does not exist here and answers `404`.
 
-The image is **multi-layered**: the base's layers plus one layer per mutating
-step (the `PKG` group, each `COPY`, each `RUN`), diffed between steps with
-whiteouts for deletions. And builds are **incremental**: every step is cached
-content-addressed in `/var/db/satl/build-cache/`, so a rebuild with no moved
-input executes nothing at all — measured on this site’s own tutorial image:
-51 s the first time, 7 s unchanged. A changed file re-runs only the steps
-after it. `--no-cache` forces a clean run, `--cache-dir` relocates the cache.
+The image is **multi-layered**: the base's layers plus one layer per mutating step (the `PKG` group, each `COPY`, each `RUN`), diffed between steps with whiteouts for deletions.
+And builds are **incremental**: every step is cached content-addressed in `/var/db/satl/build-cache/`, so a rebuild with no moved input executes nothing at all — measured on this site’s own tutorial image: 51 s the first time, 7 s unchanged.
+A changed file re-runs only the steps after it.
+`--no-cache` forces a clean run, `--cache-dir` relocates the cache.
 
 !!! warning "The image lands in this node's store only — unless you push it"
 
-    There is no cluster-wide image distribution. A service scheduled on three
-    nodes needs the image on all three: build on each, or **push the result to
-    a registry and let the nodes pull**:
+    There is no cluster-wide image distribution.
+    A service scheduled on three nodes needs the image on all three: build on each, or **push the result to a registry and let the nodes pull**:
 
     ```sh
     sudo satl build --push -t registry.example.com/apps/web:1.2
@@ -242,12 +198,9 @@ zroot/satl/images                      blobs and metadata, one dataset
 zroot/satl/layers/<chain-id>           one dataset per applied layer chain
 ```
 
-Blobs land in a content-addressed store under `images`. Unpacking is separate:
-each layer of the chain becomes a dataset cloned from the previous layer's
-`@final` snapshot, keyed by the **OCI chain ID** — the digest of the diff-ID
-chain up to that point. Two images sharing a base therefore share the datasets
-for that base, and pulling the second one only materialises what actually
-differs.
+Blobs land in a content-addressed store under `images`.
+Unpacking is separate: each layer of the chain becomes a dataset cloned from the previous layer's `@final` snapshot, keyed by the **OCI chain ID** — the digest of the diff-ID chain up to that point.
+Two images sharing a base therefore share the datasets for that base, and pulling the second one only materialises what actually differs.
 
 `zfs list -r zroot/satl/layers` is an honest picture of what images cost on a
 node, including the sharing.
@@ -256,11 +209,8 @@ node, including the sharing.
 
 !!! warning "Reclamation is manual, and it is per node"
 
-    `satl system prune` removes unreferenced image content and unreferenced layer
-    datasets. Nothing runs it for you: there is no background collector and no
-    timer, so **a node that pulls new tags for long enough and is never pruned
-    will fill its pool** — and the first symptom is `satld` failing to clone a
-    rootfs for a container that was just scheduled onto it.
+    `satl system prune` removes unreferenced image content and unreferenced layer datasets.
+    Nothing runs it for you: there is no background collector and no timer, so **a node that pulls new tags for long enough and is never pruned will fill its pool** — and the first symptom is `satld` failing to clone a rootfs for a container that was just scheduled onto it.
 
     It also reclaims **one node**: images and layers live on the node that pulled
     them, so a prune answered by one manager leaves every other node exactly as it
@@ -277,26 +227,18 @@ node, including the sharing.
 
 !!! failure "Do not hand-delete datasets under the ZFS root"
 
-    It is tempting to `zfs destroy` a layer that looks unused. Do not: **nothing
-    reconciles that**. The image metadata store still records the layer chain,
-    so the image goes on being listed and goes on being selectable, and the next
-    container created from it fails at clone time with a missing-snapshot error
-    that names a dataset you deleted by hand.
+    It is tempting to `zfs destroy` a layer that looks unused.
+    Do not: **nothing reconciles that**.
+    The image metadata store still records the layer chain, so the image goes on being listed and goes on being selectable, and the next container created from it fails at clone time with a missing-snapshot error that names a dataset you deleted by hand.
 
-    `satl system prune` is the supported path precisely because it removes the
-    record and the dataset together, and declines when something still holds a
-    clone. Container datasets are reclaimed without being asked, by [the periodic
-    dataset
-    sweep](../config/state.md#the-container-dataset-that-outlives-its-container).
+    `satl system prune` is the supported path precisely because it removes the record and the dataset together, and declines when something still holds a clone.
+    Container datasets are reclaimed without being asked, by [the periodic dataset sweep](../config/state.md#the-container-dataset-that-outlives-its-container).
 
 ## What `satl images` does not do
 
-`satl images` has `--no-trunc` and `-q` and nothing else: no `--filter`, no
-`--all`, no `--digests`. Filters sent to `GET /images/json` are ignored rather
-than refused.
+`satl images` has `--no-trunc` and `-q` and nothing else: no `--filter`, no `--all`, no `--digests`.
+Filters sent to `GET /images/json` are ignored rather than refused.
 
-A few fields of `/images/json` are placeholders: `ParentId` is always empty
-(SatL keeps no parent chain), `Labels` is always null and `SharedSize` is
-always 0. `Created` is real — 0 only for the pre-M7a images the note above is
-about. `Size` is the sum of the layer sizes and `Containers` is a real count
-of the tasks using the image, so those mean what they say.
+A few fields of `/images/json` are placeholders: `ParentId` is always empty (SatL keeps no parent chain), `Labels` is always null and `SharedSize` is always 0.
+`Created` is real — 0 only for the pre-M7a images the note above is about.
+`Size` is the sum of the layer sizes and `Containers` is a real count of the tasks using the image, so those mean what they say.

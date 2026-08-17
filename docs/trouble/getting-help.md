@@ -1,17 +1,15 @@
 # Before you report a problem
 
-A SatL bug report is worth roughly what its log excerpt is worth. Everything
-below is about collecting an excerpt that answers the next three questions
-without another round trip.
+A SatL bug report is worth roughly what its log excerpt is worth.
+Everything below is about collecting an excerpt that answers the next three questions without another round trip.
 
 Two rules to apply before you paste anything:
 
-- **`grep -a`, and read the rotated files too.** A report saying "the daemon
-  logged nothing" is nearly always a report where
-  [one of the two traps](reading-the-log.md) fired.
-- **Pin the excerpt to an identity, not to a time window.** A task ID, a service
-  ID, a node ID. SatL IDs are 25 characters of base36 and a task is one-shot, so
-  a grep on one can only be about the thing you mean.
+- **`grep -a`, and read the rotated files too.**
+  A report saying "the daemon logged nothing" is nearly always a report where [one of the two traps](reading-the-log.md) fired.
+- **Pin the excerpt to an identity, not to a time window.**
+  A task ID, a service ID, a node ID.
+  SatL IDs are 25 characters of base36 and a task is one-shot, so a grep on one can only be about the thing you mean.
 
 ## What to collect
 
@@ -24,12 +22,8 @@ freebsd-version -kru
 sudo grep -a 'starting satld' /var/log/messages | tail -1
 ```
 
-The startup banner is one line and carries the effective configuration:
-version, git commit, config file and whether it was actually read, socket path,
-state dir, ZFS root, node name, `pf_mode`, listen and advertise addresses, and
-the certificate validity in force. It is the single most useful line in a
-report, and it is the one most likely to have been rotated away — read
-[the archives](reading-the-log.md#rotation) if it is not in the live file.
+The startup banner is one line and carries the effective configuration: version, git commit, config file and whether it was actually read, socket path, state dir, ZFS root, node name, `pf_mode`, listen and advertise addresses, and the certificate validity in force.
+It is the single most useful line in a report, and it is the one most likely to have been rotated away — read [the archives](reading-the-log.md#rotation) if it is not in the live file.
 
 ### 2. What the daemon said
 
@@ -50,8 +44,8 @@ grep -ac ERROR /tmp/satld-full.log
 grep -a ERROR  /tmp/satld-full.log | tail -40
 ```
 
-If the daemon is reproducibly wrong, re-run with more detail. `RUST_LOG` wins
-over the configured level, and JSON is easier to hand to someone else:
+If the daemon is reproducibly wrong, re-run with more detail.
+`RUST_LOG` wins over the configured level, and JSON is easier to hand to someone else:
 
 ```sh
 sysrc satld_env="RUST_LOG=satld=debug,satl_cluster=debug,satl_dispatcher=debug"
@@ -92,20 +86,16 @@ satl network ls
 
 !!! warning "Say which node each command was run on"
 
-    A worker answers Docker's `This node is not a swarm manager.` for most of
-    these, and a manager reports **its own** view of node-local things —
-    health, a network's gateway. "Which node" is part of the data.
+    A worker answers Docker's `This node is not a swarm manager.` for most of these, and a manager reports **its own** view of node-local things — health, a network's gateway.
+    "Which node" is part of the data.
 
-    And do not report the `MANAGER STATUS` column as evidence of who leads: it
-    is written when the cluster forms and never refreshed
-    ([why](cluster.md#stale-manager-status)). Read leadership from the log.
+    And do not report the `MANAGER STATUS` column as evidence of who leads: it is written when the cluster forms and never refreshed ([why](cluster.md#stale-manager-status)).
+    Read leadership from the log.
 
 ### 5. The smallest thing that reproduces it
 
-The most valuable line in a report is the command that shows the problem. If
-the problem needs a cluster, say how many nodes and which roles; if it needs an
-image, name one that is publicly pullable, or describe the entrypoint and the
-platform of yours.
+The most valuable line in a report is the command that shows the problem.
+If the problem needs a cluster, say how many nodes and which roles; if it needs an image, name one that is publicly pullable, or describe the entrypoint and the platform of yours.
 
 ## What not to paste
 
@@ -118,14 +108,14 @@ platform of yours.
 
 !!! danger "A secret payload in `/var/log/messages` is itself the bug"
 
-    Secret *names* appear in the daemon log (`materialized dependency payload`,
-    `secret assigned/withdrawn`). A payload byte sequence must never appear
-    there. If you find one, that is the report — say so plainly, and do not
-    attach the log to a public tracker.
+    Secret *names* appear in the daemon log (`materialized dependency payload`, `secret assigned/withdrawn`).
+    A payload byte sequence must never appear there.
+    If you find one, that is the report — say so plainly, and do not attach the log to a public tracker.
 
 ## Things that are expected and are not bugs
 
-Save yourself the round trip. All of these are documented behaviour:
+Save yourself the round trip.
+All of these are documented behaviour:
 
 | You see | Read |
 | --- | --- |

@@ -1,8 +1,7 @@
 # Requirements
 
-Read this before you type anything. Two entries below need a reboot or a
-package the machine may not have, and one of them (`kern.racct.enable`) cannot
-be turned on at runtime at all.
+Read this before you type anything.
+Two entries below need a reboot or a package the machine may not have, and one of them (`kern.racct.enable`) cannot be turned on at runtime at all.
 
 ## The checklist
 
@@ -29,9 +28,8 @@ ZFS root dataset 'zroot/satl' does not exist; create it with:
 zfs create -o mountpoint=/var/db/satl zroot/satl
 ```
 
-The default is `zroot/satl` because that is what a stock FreeBSD root-on-ZFS
-install gives you. **If your pool is not named `zroot`**, the dataset name is
-different and you must say so in `satld.toml`:
+The default is `zroot/satl` because that is what a stock FreeBSD root-on-ZFS install gives you.
+**If your pool is not named `zroot`**, the dataset name is different and you must say so in `satld.toml`:
 
 ```console
 $ zpool list
@@ -44,21 +42,19 @@ zroot   893G   182G   711G        -         -    13%    20%  1.00x    ONLINE  -
 zfs_root = "tank/satl"
 ```
 
-SatL creates the five child datasets it needs — `raft`, `images`, `layers`,
-`containers`, `volumes` — under that root on first start. You only create the
-root.
+SatL creates the five child datasets it needs — `raft`, `images`, `layers`, `containers`, `volumes` — under that root on first start.
+You only create the root.
 
-The `state_dir` (default `/var/db/satl`) should be the root dataset's
-mountpoint. `satld` warns at startup when the two differ, rather than refusing:
-they *can* legitimately differ, but they usually differ by accident.
+The `state_dir` (default `/var/db/satl`) should be the root dataset's mountpoint.
+`satld` warns at startup when the two differ, rather than refusing: they *can* legitimately differ, but they usually differ by accident.
 
 ## The Rust version, checked on a real host
 
 Only relevant if you are building from source — installing
 [`satl-freebsd.pkg`](install.md#5-install-satl) skips this entirely.
 
-SatL's workspace declares `rust-version = "1.96"` and `edition = "2024"`. The
-FreeBSD package gives you exactly that, and no more:
+SatL's workspace declares `rust-version = "1.96"` and `edition = "2024"`.
+The FreeBSD package gives you exactly that, and no more:
 
 ```console
 $ pkg install rust
@@ -68,20 +64,16 @@ rustc 1.96.1 (31fca3adb 2026-06-26) (built from a source tarball)
 
 !!! warning "There is no margin here"
 
-    `pkg`'s `rust` is 1.96.1 against a floor of 1.96. That works today, and it
-    will keep working — but if your `pkg` repository is a snapshot older than
-    this one, `cargo build` fails at the manifest with a
-    `rustc 1.x is not supported by the following package` error before it
-    compiles a line. Check `rustc --version` **before** the install steps, not
-    during them.
+    `pkg`'s `rust` is 1.96.1 against a floor of 1.96.
+    That works today, and it will keep working — but if your `pkg` repository is a snapshot older than this one, `cargo build` fails at the manifest with a `rustc 1.x is not supported by the following package` error before it compiles a line.
+    Check `rustc --version` **before** the install steps, not during them.
 
     `rustup` is the escape hatch if your repository is behind.
 
 ## The reboot, and deferring it
 
-`kern.racct.enable` is the only entry on the checklist that needs a reboot, and
-it is the only one you can reasonably defer. If you do, know exactly what you
-are trading:
+`kern.racct.enable` is the only entry on the checklist that needs a reboot, and it is the only one you can reasonably defer.
+If you do, know exactly what you are trading:
 
 ```
 WARN satld::node: kern.racct.enable=0: rctl(8) rules cannot be installed, so --memory and
@@ -89,15 +81,16 @@ WARN satld::node: kern.racct.enable=0: rctl(8) rules cannot be installed, so --m
      and reboot to enable resource limits.
 ```
 
-`satl run --memory 512m` will not fail. The API will not complain. The reason
-is recorded in the task's status message and in that one startup line, and
-nowhere else. Everything except resource limits works identically.
+`satl run --memory 512m` will not fail.
+The API will not complain.
+The reason is recorded in the task's status message and in that one startup line, and nowhere else.
+Everything except resource limits works identically.
 
 --8<-- "loader-conf.md"
 
-`sysrc(8)` is for `rc.conf` and rejects dotted names, which is why these are
-appended directly rather than set with `sysrc`. Verify after the reboot with
-`sysctl kern.racct.enable`, expecting `1`. When it is on, `satld` says so:
+`sysrc(8)` is for `rc.conf` and rejects dotted names, which is why these are appended directly rather than set with `sysrc`.
+Verify after the reboot with `sysctl kern.racct.enable`, expecting `1`.
+When it is on, `satld` says so:
 
 ```
 INFO satld::node: kern.racct.enable=1; rctl(8) resource limits are enforced
@@ -105,18 +98,16 @@ INFO satld::node: kern.racct.enable=1; rctl(8) resource limits are enforced
 
 !!! danger "Do not set `rctl_enable=YES` in `rc.conf`"
 
-    That loads static rules from `/etc/rctl.conf` at boot. SatL adds and removes
-    its own rules per container; the two do not need each other and the static
-    file will fight you.
+    That loads static rules from `/etc/rctl.conf` at boot.
+    SatL adds and removes its own rules per container; the two do not need each other and the static file will fight you.
 
 ## Nice to have
 
-- **A container registry you can reach.** SatL pulls from any OCI registry.
-  `satl build` exists, but it builds FreeBSD images into one node's store —
-  for anything else, or to share an image across nodes, you need a registry.
+- **A container registry you can reach.**
+  SatL pulls from any OCI registry.
+  `satl build` exists, but it builds FreeBSD images into one node's store — for anything else, or to share an image across nodes, you need a registry.
   [First container](first-container.md) deals with this honestly.
-- **The `docker` CLI**, if you have it. `docker -H unix:///var/run/satl.sock
-  version` works, and it is a useful independent check that the API surface is
-  what it claims to be.
+- **The `docker` CLI**, if you have it.
+  `docker -H unix:///var/run/satl.sock version` works, and it is a useful independent check that the API surface is what it claims to be.
 
 Next: [Install](install.md).

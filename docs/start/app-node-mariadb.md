@@ -1,15 +1,10 @@
 # A real application: Node.js + MariaDB
 
-From zero to a three-replica web app with a database, built, deployed and
-operated with SatL alone. Every command and every output on this page was run
-on the three-node test cluster — the surprises it hit are left in, because
-they are the ones you will hit.
+From zero to a three-replica web app with a database, built, deployed and operated with SatL alone.
+Every command and every output on this page was run on the three-node test cluster — the surprises it hit are left in, because they are the ones you will hit.
 
-The app is a guestbook: a Node.js server that reads and writes a MariaDB
-table, three replicas behind a published port, the database pinned to one
-node with a node-local volume. On the way it uses `satl build`, secrets,
-constraints, placement preferences, healthchecks, `satl stack`, the routing
-mesh, a rolling update and a hot resize.
+The app is a guestbook: a Node.js server that reads and writes a MariaDB table, three replicas behind a published port, the database pinned to one node with a node-local volume.
+On the way it uses `satl build`, secrets, constraints, placement preferences, healthchecks, `satl stack`, the routing mesh, a rolling update and a hot resize.
 
 ## What you need
 
@@ -20,7 +15,8 @@ first container](../start/first-container.md) does.
 
 ## 1. The application
 
-Two files. `app/package.json`:
+Two files.
+`app/package.json`:
 
 ```json
 {
@@ -106,16 +102,14 @@ Built and registered 127.0.0.1:5000/satl-test/tuto-web:latest (manifest sha256:1
 !!! warning "The image lands in this node's store only"
 
     A three-replica service needs the image on every node it may run on.
-    Build on each (copy the directory, run the same command), or push the
-    result to a registry the nodes can pull from — `satl build --push -t
-    registry.example.com/apps/tuto-web:1` does it in one command since M8a.
-    This page builds per node because the test cluster's registry is
-    loopback-only.
+    Build on each (copy the directory, run the same command), or push the result to a registry the nodes can pull from — `satl build --push -t registry.example.com/apps/tuto-web:1` does it in one command since M8a.
+    This page builds per node because the test cluster's registry is loopback-only.
 
 ## 3. The database image
 
-MariaDB needs an entrypoint that initialises the data directory on first
-start. With `COPY` the script rides inside the image. `db/db-entrypoint.sh`:
+MariaDB needs an entrypoint that initialises the data directory on first start.
+With `COPY` the script rides inside the image.
+`db/db-entrypoint.sh`:
 
 ```sh
 #!/bin/sh
@@ -229,12 +223,9 @@ What each choice is buying:
 
 !!! warning "There is no `localhost` inside a SatL jail"
 
-    A VNET jail's `lo0` carries only `::1` — `127.0.0.1` is unassigned, so
-    the Docker-style `curl http://localhost/` probe cannot connect. Probe the
-    task's own address, which is what the `ifconfig` one-liner reads. Two
-    more traps the minimal base sets: there is no `awk` (hence the pure-shell
-    `while read`), and compose files refuse `$` interpolation — every literal
-    dollar is written `$$`.
+    A VNET jail's `lo0` carries only `::1` — `127.0.0.1` is unassigned, so the Docker-style `curl http://localhost/` probe cannot connect.
+    Probe the task's own address, which is what the `ifconfig` one-liner reads.
+    Two more traps the minimal base sets: there is no `awk` (hence the pure-shell `while read`), and compose files refuse `$` interpolation — every literal dollar is written `$$`.
 
 Deploy it with the stack verbs:
 
@@ -270,11 +261,8 @@ $ for i in 1 2 3 4 5 6; do curl -s http://152.228.231.20:18090/ |
    2 réplica: 2kneyk0g22a9
 ```
 
-Every one of those requests went through a node that may host no replica, and
-all three messages are in the one database on node1. The `client:` field on
-the page shows the mesh's relay address, not yours — that is the SNAT trade,
-and the [`satl.publish.proxy_protocol=v2`
-label](../use/publishing-ports.md#the-client-address) is the opt-in remedy.
+Every one of those requests went through a node that may host no replica, and all three messages are in the one database on node1.
+The `client:` field on the page shows the mesh's relay address, not yours — that is the SNAT trade, and the [`satl.publish.proxy_protocol=v2` label](../use/publishing-ports.md#the-client-address) is the opt-in remedy.
 
 ## 6. A rolling update, without losing a request
 
@@ -288,19 +276,14 @@ $ while true; do curl -s -o /dev/null -w "%{http_code} " http://152.228.231.20:1
 200 200 200 200 200 200 200 200 200 200 200 200 …
 ```
 
-Not one dropped connection: a slot's replacement must pass its healthcheck
-and outlive the monitor window before the next slot moves, and the published
-port's pf table follows the live set. `satl service inspect tuto_web` shows
-the rollout in `UpdateStatus`.
+Not one dropped connection: a slot's replacement must pass its healthcheck and outlive the monitor window before the next slot moves, and the published port's pf table follows the live set.
+`satl service inspect tuto_web` shows the rollout in `UpdateStatus`.
 
 !!! note "If the update pauses"
 
-    `--update-failure-action pause` (the default) stops a rollout whose
-    tasks fail. Push the same update again to resume — and if the failed task
-    still counts against the *same* spec, any small spec change (a label)
-    starts a clean count. During this page's run, one task was rejected by a
-    transient `zfs … dataset is busy` and paused the rollout twice before a
-    label bump carried it through.
+    `--update-failure-action pause` (the default) stops a rollout whose tasks fail.
+    Push the same update again to resume — and if the failed task still counts against the *same* spec, any small spec change (a label) starts a clean count.
+    During this page's run, one task was rejected by a transient `zfs … dataset is busy` and paused the rollout twice before a label bump carried it through.
 
 ## 7. A hot resize
 
@@ -311,9 +294,8 @@ $ sudo rctl jail:$(sudo satl service ps tuto_web --no-trunc -q | head -1)
 jail:24ceq6bf9xx2dzm0e4bcccwe6:memoryuse:sigkill=268435456
 ```
 
-The rctl rule changed and the task ids did not — a resources-only update is
-applied to the live jails, not rolled. For the database, that is the
-difference between a resize and an incident.
+The rctl rule changed and the task ids did not — a resources-only update is applied to the live jails, not rolled.
+For the database, that is the difference between a resize and an incident.
 
 ## 8. The database survives a crash
 

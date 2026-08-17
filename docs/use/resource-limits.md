@@ -5,16 +5,13 @@ satl run -d --memory 512m --cpus 1.5 registry.example.com/app:1
 satl service create --limit-memory 512m --limit-cpu 1.5 registry.example.com/app:1
 ```
 
-Two flags, and they behave less alike than their names suggest. SatL has no
-cgroups to work with — there are none on FreeBSD — so both are `rctl(8)` rules
-scoped to the container's jail, and `rctl` is a different tool with different
-semantics.
+Two flags, and they behave less alike than their names suggest.
+SatL has no cgroups to work with — there are none on FreeBSD — so both are `rctl(8)` rules scoped to the container's jail, and `rctl` is a different tool with different semantics.
 
 ## They need `kern.racct.enable=1`, and it is a boot-time tunable
 
-Resource accounting cannot be switched on at runtime. FreeBSD's GENERIC kernel
-ships with it off (`RACCT_DEFAULT_TO_DISABLED`), because it costs per-process
-bookkeeping in the kernel.
+Resource accounting cannot be switched on at runtime.
+FreeBSD's GENERIC kernel ships with it off (`RACCT_DEFAULT_TO_DISABLED`), because it costs per-process bookkeeping in the kernel.
 
 --8<-- "loader-conf.md"
 
@@ -25,13 +22,12 @@ sysctl kern.racct.enable          # expect 1
 
 !!! danger "Without it, `--memory` and `--cpus` are accepted and silently unenforced"
 
-    The daemon does not refuse to start, and it does not refuse the flags. It
-    accepts them, records the reason in the task's status message, and runs the
-    container with no limit at all. A container you believe is capped at 512 MB
-    will happily take the machine.
+    The daemon does not refuse to start, and it does not refuse the flags.
+    It accepts them, records the reason in the task's status message, and runs the container with no limit at all.
+    A container you believe is capped at 512 MB will happily take the machine.
 
-    `satld` says which mode it is in, once, at startup. **Check that line before
-    you trust a limit.**
+    `satld` says which mode it is in, once, at startup.
+    **Check that line before you trust a limit.**
 
     ```
     INFO satld::node: kern.racct.enable=1; rctl(8) resource limits are enforced
@@ -49,10 +45,9 @@ sysctl kern.racct.enable          # expect 1
 
 !!! failure "Do not set `rctl_enable="YES"` in `rc.conf`"
 
-    That is a different thing entirely: it loads static rules from
-    `/etc/rctl.conf` at boot. SatL adds and removes its own rules per container,
-    and does not want a static ruleset alongside them. Setting the loader tunable
-    is all that is needed.
+    That is a different thing entirely: it loads static rules from `/etc/rctl.conf` at boot.
+    SatL adds and removes its own rules per container, and does not want a static ruleset alongside them.
+    Setting the loader tunable is all that is needed.
 
 ## What the two flags actually do
 
@@ -63,29 +58,24 @@ sysctl kern.racct.enable          # expect 1
 
 ### `--memory` kills
 
-This is the closest FreeBSD equivalent of a Linux cgroup OOM kill, and it is not
-a throttle, a soft limit, or a reclaim hint. Cross the cap and the process gets
-`SIGKILL`. A container that occasionally spikes past its limit will die, and its
-service's restart policy will replace it — which will look like a crash loop with
-no message, because from inside the container nothing happened.
+This is the closest FreeBSD equivalent of a Linux cgroup OOM kill, and it is not a throttle, a soft limit, or a reclaim hint.
+Cross the cap and the process gets `SIGKILL`.
+A container that occasionally spikes past its limit will die, and its service's restart policy will replace it — which will look like a crash loop with no message, because from inside the container nothing happened.
 
 ??? note "Why not `memoryuse:deny`?"
 
-    Because it would be silently useless. RSS is not a deniable resource in the
-    FreeBSD kernel — there is no allocation to refuse at the right moment — yet
-    `rctl` accepts the rule without complaint. Measured: a 64 MB `deny` cap
-    allocated 200 MB and nothing objected. A rule that is accepted and does
-    nothing is worse than no rule, so SatL uses the one that works.
+    Because it would be silently useless.
+    RSS is not a deniable resource in the FreeBSD kernel — there is no allocation to refuse at the right moment — yet `rctl` accepts the rule without complaint.
+    Measured: a 64 MB `deny` cap allocated 200 MB and nothing objected.
+    A rule that is accepted and does nothing is worse than no rule, so SatL uses the one that works.
 
 ### `--cpus` throttles, over time
 
-`pcpu:deny` makes the scheduler hold the jail toward the cap, and rctl's
-accounting is a decaying average — so the limit is *approached*, not imposed
-instantly. A short burst above it is normal and expected.
+`pcpu:deny` makes the scheduler hold the jail toward the cap, and rctl's accounting is a decaying average — so the limit is *approached*, not imposed instantly.
+A short burst above it is normal and expected.
 
-Measured on a fixed CPU-bound workload: 4.4 s unlimited, 10.5 s at
-`pcpu:deny=20`, converging further on longer runs. Do not benchmark a CPU limit
-with a one-second job and conclude it does not work.
+Measured on a fixed CPU-bound workload: 4.4 s unlimited, 10.5 s at `pcpu:deny=20`, converging further on longer runs.
+Do not benchmark a CPU limit with a one-second job and conclude it does not work.
 
 `--cpus` takes fractions: `0.5`, `1.25`, `2`.
 
@@ -95,17 +85,15 @@ with a one-second job and conclude it does not work.
 rctl -h jail:<container id>
 ```
 
-The rules are named for the jail, which is named for the task, which is the
-container id you see in `satl ps`. They are removed when the container is
-removed.
+The rules are named for the jail, which is named for the task, which is the container id you see in `satl ps`.
+They are removed when the container is removed.
 
 ## `/proc/meminfo` inside a Linux container shows the host
 
 !!! warning "Anything that auto-sizes from `/proc` sees the whole machine"
 
-    Under the linuxulator, `/proc/meminfo` and `/proc/cpuinfo` are `linprocfs`
-    views of the **host's** resources. They know nothing about the jail's rctl
-    limits.
+    Under the linuxulator, `/proc/meminfo` and `/proc/cpuinfo` are `linprocfs` views of the **host's** resources.
+    They know nothing about the jail's rctl limits.
 
     A JVM with `-XX:MaxRAMPercentage`, a Go runtime sizing `GOMAXPROCS`, a Node
     process reading `os.totalmem()`, or anything else that auto-sizes from those
@@ -121,9 +109,8 @@ removed.
       registry.example.com/app:1
     ```
 
-    This is a platform limit, not a bug that can be detected at runtime. Closing
-    it would need something like an `LD_PRELOAD` shim rewriting those files
-    per-jail, which SatL does not do.
+    This is a platform limit, not a bug that can be detected at runtime.
+    Closing it would need something like an `LD_PRELOAD` shim rewriting those files per-jail, which SatL does not do.
 
 ## Resizing a live service { #resizing-a-live-service }
 
@@ -131,28 +118,21 @@ removed.
 satl service update --limit-memory 1g web
 ```
 
-A `service update` whose only change is resources — limits, reservations, or
-both — **does not roll the tasks**. The new values are pushed into the live
-task objects and each node's agent rewrites the jail's rctl rules in place:
-the same containers keep serving, with no restart and no gap. For a database,
-that is the difference between a resize and an incident.
+A `service update` whose only change is resources — limits, reservations, or both — **does not roll the tasks**.
+The new values are pushed into the live task objects and each node's agent rewrites the jail's rctl rules in place: the same containers keep serving, with no restart and no gap.
+For a database, that is the difference between a resize and an incident.
 
-`satl service update` takes `--limit-cpu`, `--limit-memory`, `--reserve-cpu`
-and `--reserve-memory`; passing `0` clears that dimension. Any other change in
-the same update — an image, an env var, a label — takes the ordinary rolling
-path, and the replacement tasks carry the new resources whole.
+`satl service update` takes `--limit-cpu`, `--limit-memory`, `--reserve-cpu` and `--reserve-memory`; passing `0` clears that dimension.
+Any other change in the same update — an image, an env var, a label — takes the ordinary rolling path, and the replacement tasks carry the new resources whole.
 
 Two things to know:
 
-- **A memory shrink below current usage is a kill waiting to happen.** The
-  `memoryuse:sigkill` rule does not evict what is already allocated — it kills
-  on the *next* allocation past the cap — so a jail using 160 MB that is
-  capped at 100 MB survives until it grows, then dies in a way that looks like
-  a crash. The daemon cannot see node-local usage when you write the spec, so
-  it cannot refuse; the node's agent logs a loud warning naming the watermark
-  when it arms such a rule. Check first with `rctl -h jail:<container id>`.
-- **Reservations change nothing for running tasks.** They are the scheduler's
-  input for future placements; only limits touch rctl.
+- **A memory shrink below current usage is a kill waiting to happen.**
+  The `memoryuse:sigkill` rule does not evict what is already allocated — it kills on the *next* allocation past the cap — so a jail using 160 MB that is capped at 100 MB survives until it grows, then dies in a way that looks like a crash.
+  The daemon cannot see node-local usage when you write the spec, so it cannot refuse; the node's agent logs a loud warning naming the watermark when it arms such a rule.
+  Check first with `rctl -h jail:<container id>`.
+- **Reservations change nothing for running tasks.**
+  They are the scheduler's input for future placements; only limits touch rctl.
 
 ## What is refused rather than half-honoured
 

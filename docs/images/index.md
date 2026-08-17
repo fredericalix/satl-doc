@@ -2,11 +2,8 @@
 
 Pulling, storing, resolving — and building — OCI images on ZFS.
 
-SatL treats an image as content-addressed blobs plus a layer chain, and the
-layer chain *is* ZFS: each applied layer is a dataset cloned from the previous
-one's snapshot, so two images sharing a base share the datasets for that base.
-`zfs list -r zroot/satl/layers` is the honest inventory of what images cost a
-node.
+SatL treats an image as content-addressed blobs plus a layer chain, and the layer chain *is* ZFS: each applied layer is a dataset cloned from the previous one's snapshot, so two images sharing a base share the datasets for that base.
+`zfs list -r zroot/satl/layers` is the honest inventory of what images cost a node.
 
 The day-to-day surface:
 

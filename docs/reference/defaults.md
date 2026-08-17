@@ -1,11 +1,10 @@
 # Defaults and constants
 
-The values SatL uses when you do not choose one. Only the ones an operator can
-actually observe are listed — internal tuning constants are not on this page.
+The values SatL uses when you do not choose one.
+Only the ones an operator can actually observe are listed — internal tuning constants are not on this page.
 
-Most of these are SwarmKit's own defaults, adopted deliberately so that a
-service spec written for Docker Swarm behaves the same way here. Where SatL
-differs, the row says so.
+Most of these are SwarmKit's own defaults, adopted deliberately so that a service spec written for Docker Swarm behaves the same way here.
+Where SatL differs, the row says so.
 
 ## Task and service behaviour
 
@@ -19,11 +18,9 @@ differs, the row says so.
 
 !!! note "Setting a non-default restart policy needs the API"
 
-    `satl service create` carries `--restart-condition` but none of
-    `--restart-delay`, `--restart-max-attempts` or `--restart-window`. A service
-    that needs anything but the defaults above has to be created over the REST
-    API. Durations on the wire are **nanoseconds**, as everywhere in the Docker
-    API.
+    `satl service create` carries `--restart-condition` but none of `--restart-delay`, `--restart-max-attempts` or `--restart-window`.
+    A service that needs anything but the defaults above has to be created over the REST API.
+    Durations on the wire are **nanoseconds**, as everywhere in the Docker API.
 
 ## Rolling updates
 
@@ -96,13 +93,9 @@ Every one of the last five is a key in [`satld.toml`](satld-toml.md).
 
 Worth stating explicitly, because their absence surprises people:
 
-- **nothing collects images or layers on a timer**, so disk use under
-  `<zfs_root>/layers` and `<zfs_root>/images` grows until you run
-  `satl system prune` — per node, since that is the scope it reclaims. See
-  [Reclaiming space](../use/reclaiming-space.md);
+- **nothing collects images or layers on a timer**, so disk use under `<zfs_root>/layers` and `<zfs_root>/images` grows until you run `satl system prune` — per node, since that is the scope it reclaims.
+  See [Reclaiming space](../use/reclaiming-space.md);
 - **there is no rebalancer**, so tasks moved off a node by a drain stay where
   they were re-placed;
-- **there is no per-node endpoint limit on an overlay network** worth planning
-  around — the static forwarding table is unbounded in practice. What *is*
-  bounded is the kernel's debugging dump of that table, which stops at 81
-  entries without saying so.
+- **there is no per-node endpoint limit on an overlay network** worth planning around — the static forwarding table is unbounded in practice.
+  What *is* bounded is the kernel's debugging dump of that table, which stops at 81 entries without saying so.

@@ -9,8 +9,8 @@
     rotates the file about once an hour, so a daemon 80 minutes old already has
     its startup line in `messages.0.bz2`.
 
-    **[Reading the log](reading-the-log.md) first.** Every other page here
-    assumes it.
+    **[Reading the log](reading-the-log.md) first.**
+    Every other page here assumes it.
 
 ### The CLI said…
 
@@ -95,6 +95,7 @@
 
 ---
 
-Not a failure, just a difference from Docker? See
-[Differences from Docker](../docker-differences.md). Ready to report something?
+Not a failure, just a difference from Docker?
+See [Differences from Docker](../docker-differences.md).
+Ready to report something?
 [What to collect first](getting-help.md).

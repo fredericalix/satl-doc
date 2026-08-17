@@ -2,9 +2,9 @@
      that directory. -->
 !!! tip "The CLI shows the summary; the log shows the cause"
 
-    An error from `satl` tells you what did not happen. `/var/log/messages`
-    tells you which `zfs`, `ifconfig`, `pfctl` or `ocijail` command failed and
-    what it printed. Read both, in that order:
+    An error from `satl` tells you what did not happen.
+    `/var/log/messages` tells you which `zfs`, `ifconfig`, `pfctl` or `ocijail` command failed and what it printed.
+    Read both, in that order:
 
     ```sh
     sudo grep -a satld /var/log/messages | tail -50
