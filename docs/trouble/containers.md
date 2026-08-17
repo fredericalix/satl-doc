@@ -106,23 +106,9 @@ sudo grep -a 'linuxulator' /var/log/messages | tail -5
 `linsysfs`, `fdescfs`, `pty` and sets the fallback brand. For the image, use one
 whose entrypoint is a plain foreground process.
 
-??? note "Why an init entrypoint is refused up front"
-
-    A FreeBSD jail has no PID namespace, so the entrypoint keeps its host PID
-    and is never PID 1, and there is no cgroup filesystem at all — `linsysfs`
-    provides only `bus class dev devices kernel`, so there is not even a
-    `/sys/fs` to hang a mountpoint on.
-
-    Runtime detection is useless here, which is the whole reason for the
-    up-front rejection: systemd 255 under the linuxulator answers
-    `systemd --version` happily and then **exits 1 with no output at all** when
-    run as `systemd --system`. The only trace is in `dmesg`
-    (`linux: jid N pid M (systemd): unsupported prctl option 27|39|47`). A
-    container that dies instantly and silently is a far worse experience than a
-    task rejected with a sentence.
-
-    Both musl (Alpine) and glibc (Ubuntu) images otherwise work on FreeBSD 15.1
-    — the folklore that the linuxulator needs glibc is not reproducible here.
+Why an init entrypoint is refused before it runs rather than allowed to fail,
+and what the emulation does and does not provide:
+[Linux containers](../use/linux-containers.md#where-the-emulation-stops).
 
 ## The container exits immediately, and `satl logs` is empty { #silent-exit }
 
@@ -145,12 +131,13 @@ sudo grep -a 'task_id=<id>' /var/log/messages
 | nothing anywhere, image expects `/sys/fs/cgroup` or `/proc/cgroups` | there is no cgroup filesystem; the application decided it could not run |
 | the daemon log carries an `ocijail` command line and its stderr | a real runtime failure — read the argv and the stderr, they are both there |
 
-**Fix.** Depends entirely on the third column. What is worth knowing before you
-start: `/proc/meminfo` and `/proc/cpuinfo` inside a Linux container report the
-**host's** resources, so JVM- and Go-style automatic sizing sees the whole
-machine; OFD file locks return `EINVAL`; and anything needing netlink, cgroupfs
-or `io_uring` fails. An Alpine image misbehaving is worth retesting against a
-glibc image before blaming SatL — musl exercises different syscall paths.
+**Fix.** Depends entirely on the third column. For a Linux image, the usual
+causes are all on one list —
+[where the emulation stops](../use/linux-containers.md#where-the-emulation-stops)
+— and the fastest way to name the missing piece is `sysctl compat.linux.debug=3`,
+which logs each unimplemented syscall once. An Alpine image misbehaving is worth
+retesting against a glibc image before blaming SatL: musl exercises different
+syscall paths.
 
 ## `--memory` and `--cpus` do nothing { #limits-not-enforced }
 

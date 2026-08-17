@@ -12,7 +12,7 @@ be turned on at runtime at all.
 | **A ZFS pool, and a root dataset for SatL** | ZFS is not one storage driver among several: a layer *is* a dataset, applying a layer is snapshot + clone, and a container's writable layer is a clone. | `satld` **refuses to start**, with the command to fix it in the error. See below. |
 | **root** | `satld` creates jails, ZFS datasets and network interfaces, and loads pf anchors. | The daemon cannot install its devfs ruleset, and every jail creation fails at `/dev`. |
 | **`ocijail`** — `pkg install ocijail` | SatL implements no runtime. It generates an OCI spec and drives the `ocijail` binary. | Every task fails at the create step. Nothing fails at startup, which makes it a confusing way to find out. |
-| **A Rust toolchain** — `pkg install rust` | There is no package and no release binary; you build from source. | Nothing to install. See the version note below. |
+| **A Rust toolchain** — `pkg install rust` | **Only if you build from source.** The [package](install.md#5-install-satl) needs no toolchain at all. | Nothing, unless you are building — then see the version note below. |
 | **pf, loaded and enabled** | pf *is* SatL's data path: NAT for container egress, `rdr` for published ports. | Containers get no outbound connectivity and no published port is redirected. |
 | **Three anchor lines in `/etc/pf.conf`** | SatL only ever writes inside `satl/*`, and an anchor that is not declared is never evaluated. | The daemon loads its rules into anchors nothing consults. Everything looks fine and nothing works. |
 | **`kern.racct.enable=1` in `/boot/loader.conf`, then a reboot** | Resource accounting is a boot-time tunable; `rctl(8)` rules cannot be installed without it. | `--memory` and `--cpus` are **accepted and silently not enforced**. `satld` warns at startup; nothing else complains, ever. |
@@ -53,6 +53,9 @@ mountpoint. `satld` warns at startup when the two differ, rather than refusing:
 they *can* legitimately differ, but they usually differ by accident.
 
 ## The Rust version, checked on a real host
+
+Only relevant if you are building from source — installing
+[`satl-freebsd.pkg`](install.md#5-install-satl) skips this entirely.
 
 SatL's workspace declares `rust-version = "1.96"` and `edition = "2024"`. The
 FreeBSD package gives you exactly that, and no more:

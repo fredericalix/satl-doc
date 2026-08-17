@@ -16,9 +16,13 @@ copyright: >-
   Documentation licensed under
   <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
 
-# site_url, repo_url and edit_uri are deliberately absent: there is no git
-# remote yet, and Material renders an "Edit this page" link that would 404 on
-# every page. See README.md -- adding the remote is the trigger to set them.
+site_url: https://satl.cc/
+repo_url: https://github.com/fredericalix/satl-doc
+repo_name: fredericalix/satl-doc
+# `edit_uri` points at the docs repository, not at SatL: a reader fixing a
+# sentence edits the page. The generated pages under reference/cli/ say in their
+# own banner that they are the wrong place to edit -- see overlay/cli.yml.
+edit_uri: edit/main/docs/
 
 docs_dir: docs
 site_dir: site
@@ -39,21 +43,31 @@ theme:
     - content.code.copy
     - content.tooltips
   palette:
+    # The system-preference entry carries the colours too, even though it
+    # delegates light/dark to the two below: its attributes are what the server
+    # renders into the HTML, so without them the first paint is Material's
+    # default indigo until palette.js resolves the real one.
     - media: "(prefers-color-scheme)"
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-auto
         name: Follow the system theme
+    # `custom` on purpose: it suppresses Material's own colour rules so
+    # stylesheets/extra.css owns the pastel-orange palette, including the
+    # contrast fixes a pastel primary needs. Do not put a colour name back here
+    # without deleting that block.
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -167,6 +181,7 @@ nav:
       - use/index.md
       - Containers and services: use/containers-and-services.md
       - Images: use/images.md
+      - Linux containers: use/linux-containers.md
       - Networks: use/networks.md
       - Publishing ports: use/publishing-ports.md
       - Storage: use/storage.md

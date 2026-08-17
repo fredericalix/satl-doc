@@ -194,7 +194,8 @@ Everything below is organised by what you are trying to do.
   `CpuQuota`, `CpusetCpus`, `MemorySwap`, `Ulimits`, `CgroupParent`, `ShmSize`.
 - Inside a Linux container, `/proc/meminfo` and `/proc/cpuinfo` report the
   **host's** resources, so JVM- and Go-style automatic sizing sees the whole
-  machine regardless of the limit.
+  machine regardless of the limit — set the heap or `GOMEMLIMIT` explicitly, as
+  [Linux containers](use/linux-containers.md#where-the-emulation-stops) shows.
 
 ## You add a healthcheck
 

@@ -56,24 +56,37 @@ Reboot when convenient. See
 [Requirements](requirements.md#the-reboot-and-deferring-it) for what you lose
 until you do.
 
-## 5. Build and install
+## 5. Install SatL
 
-The fastest path is the prebuilt package, if you have one:
+Download the package and add it:
 
 ```sh
-pkg add ./satl-0.1.0.pkg    # no repository needed; pulls ocijail if a repo is configured
+fetch https://satl.cc/download/satl-freebsd.pkg
+pkg add ./satl-freebsd.pkg          # pulls ocijail if a pkg repository is configured
 ```
 
-The post-install message recalls the host prerequisites (steps 1–4 of this
-page). To build the package yourself: `make package` writes
-`dist/satl-<version>.pkg`.
+Two steps rather than one so you can see the file land before anything installs
+— and so you can check it, keep it, or copy it to the other nodes of a cluster
+instead of downloading it three times.
 
-From source instead:
+The package needs no repository of its own, and its post-install message recalls
+the host prerequisites you have just done (steps 1–4 of this page). It installs
+the same four files a source build does, listed below.
+
+!!! tip "One package, every node"
+
+    A cluster wants the same build everywhere. `fetch` once, `scp` the file
+    around, `pkg add` on each machine — mixing versions across nodes is not a
+    configuration SatL is tested in.
+
+From source instead, if you would rather build it — this is also how you get an
+unreleased fix, and it is the only path that needs a Rust toolchain:
 
 ```sh
-git clone <the SatL repository> satl
+git clone https://github.com/fredericalix/satl satl
 cd satl
 make install          # builds in release mode, then installs
+make package          # or: build the package yourself, into dist/satl-<version>.pkg
 ```
 
 `make install` needs root (it

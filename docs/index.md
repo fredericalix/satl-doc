@@ -11,6 +11,12 @@ surface is Docker's — the `satl` CLI speaks the verbs you already know, and
 `satld` serves the Docker Engine REST API on `/var/run/satl.sock`, so the
 `docker` CLI works against it unchanged.
 
+Which means the first hour is mostly familiar. `satl run`, `satl ps`,
+`satl logs`, a compose file — they do what you expect. What is different sits
+underneath: one daemon to install, nothing beside it to operate, and a single
+machine that is already a cluster of one, so adding the second one is a join
+rather than a migration.
+
 ## Where to start
 
 <div class="grid cards" markdown>
@@ -49,13 +55,31 @@ surface is Docker's — the `satl` CLI speaks the verbs you already know, and
 
 </div>
 
-## Status
+## Status: early, and real
 
-SatL is **pre-1.0 and pre-release**. There are no tagged releases, no FreeBSD
-package and no upgrade path between versions. The only way to install it is to
-build it from source on the machine that will run it. Cluster state has a
+SatL is at **0.1.0-beta**, its first public release, under the
+[BSD-2-Clause licence](about/status.md#licensing) — the same terms as FreeBSD
+itself. There is a FreeBSD package to install:
+
+```sh
+fetch https://satl.cc/download/satl-freebsd.pkg
+pkg add ./satl-freebsd.pkg
+```
+
+"Beta" here is a statement about the edges, not the middle. The feature set runs
+real workloads — the [Node.js + MariaDB tutorial](start/app-node-mariadb.md) on
+this site goes end to end on a three-node cluster — and everything documented
+here has been *run*, on FreeBSD 15.1 amd64. Nothing on this site is documented
+from intent.
+
+What that leaves, plainly: no independent security audit, no compatibility
+promise between pre-1.0 versions and no upgrade path across them, FreeBSD 15.1
+on amd64 only, and IPv4 only. Cluster state has a
 [measured backup and restore procedure](cluster/backup-restore.md), but no `satl`
-verb performs it and a cluster that permanently loses quorum cannot be repaired
-from inside. Everything documented here has been run on FreeBSD 15.1 amd64;
-nothing here is documented from intent. What is missing is listed, by name, on the
+verb performs it, and a cluster that permanently loses quorum cannot be repaired
+from inside. What is missing is listed, by name, on the
 [status page](about/status.md).
+
+If you try it, the most useful thing you can send back is a log excerpt and the
+command that produced it — [what makes a report
+useful](trouble/getting-help.md).

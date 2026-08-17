@@ -1,5 +1,56 @@
 /* Site-specific overrides. Material's own theme does the heavy lifting. */
 
+/* The palette: pastel orange.
+
+   Material's built-in `orange` is #FF9800 — a saturated safety-cone orange, not
+   a pastel — and its palette generator offers nothing softer. So mkdocs.yml
+   says `primary: custom` / `accent: custom`, which makes Material emit the
+   `data-md-color-*="custom"` attributes and *no* colour rules of its own, and
+   the variables below own the palette outright.
+
+   Contrast is the whole reason this is more than three lines. Material's
+   default is white text on the primary colour and body links coloured with it;
+   on a pastel both are unreadable (white on #F6B98A is 1.7:1, and the pastel on
+   white is 1.6:1 — against the 4.5:1 WCAG AA floor for text). So text on the
+   header is dark brown, and links get a token of their own. */
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color:        #f6b98a;  /* header, tabs: soft apricot */
+  --md-primary-fg-color--light: #fbd3b4;
+  --md-primary-fg-color--dark:  #e09a62;
+  --md-primary-bg-color:        #3a2415;  /* text on the header: 8.5:1 */
+  --md-primary-bg-color--light: rgba(58, 36, 21, 0.7);
+}
+
+[data-md-color-accent="custom"] {
+  /* Hover and focus states only — never body text: #c2622b on white is 4.2:1,
+     which clears AA for large text and fails it for prose. */
+  --md-accent-fg-color:             #c2622b;
+  --md-accent-fg-color--transparent: rgba(194, 98, 43, 0.1);
+  --md-accent-bg-color:             #ffffff;
+  --md-accent-bg-color--light:      rgba(255, 255, 255, 0.7);
+}
+
+/* Body links and the active nav entry, both of which Material colours with
+   `--md-typeset-a-color`. Darker than the accent so prose clears AA: 5.5:1. */
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: #a8501f;
+}
+
+/* Dark mode. The header inverts — a pastel header under a dark page reads as a
+   light strip stuck to the top — so it becomes the deep end of the same brown
+   and carries warm off-white text. */
+[data-md-color-scheme="slate"][data-md-color-primary="custom"] {
+  --md-primary-fg-color:        #2e1f16;
+  --md-primary-fg-color--light: #4a3222;
+  --md-primary-fg-color--dark:  #1d1310;
+  --md-primary-bg-color:        #f0e4d8;
+  --md-primary-bg-color--light: rgba(240, 228, 216, 0.7);
+}
+
+[data-md-color-scheme="slate"] {
+  --md-typeset-a-color: #f0a868;  /* 6.5:1 on slate */
+}
+
 /* The generated CLI tables put a flag spec in the first column: keep it on
    one line, since a wrapped `--rollback-max-failure-ratio <RATIO>` is much
    harder to scan than a slightly wider column. */

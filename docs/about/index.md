@@ -1,7 +1,9 @@
 # About SatL
 
-Four pages, in the order they are worth reading if you are deciding whether
-SatL is for you.
+Four pages, in the order they are worth reading if you are deciding whether SatL
+is for you. They are written to help you decide *against* it too, where that is
+the right answer — a container engine you adopt on an accurate picture is worth
+more to both of us than one you adopt on an optimistic one.
 
 - **[What SatL is](what-satl-is.md)** — the model, and the one sentence that
   reframes it for a Docker user. What that model buys, and what it costs.

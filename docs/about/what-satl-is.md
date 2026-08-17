@@ -124,19 +124,37 @@ Three smaller consequences of the same shape:
     oversight. The cost is that every container would then carry a full service
     spec and an update policy it never uses. The decision is still open.
 
-## What SatL is not
+## Where SatL stops
 
-- **It is not Docker Swarm with a FreeBSD backend.** The orchestration follows
-  SwarmKit's behavioural model closely — the same task states, the same restart
-  and update semantics, the same join-token scheme — but the data plane is
-  FreeBSD's, and that changes real things. There is no service VIP and no
-  routing mesh; see [Why FreeBSD](why-freebsd.md).
-- **It is not a build tool.** `satl build` covers the pkg-shaped FreeBSD case
-  — a `Satlfile`, not a Dockerfile — but there is no BuildKit and no
-  daemon-side build. SatL runs images; anything beyond that subset, something
-  else has to produce.
+Three boundaries are worth knowing early — not as disclaimers, but because each
+one tells you which tool to reach for next.
+
+- **It is close to Docker Swarm, and that is the point — but the data plane is
+  FreeBSD's.** The orchestration follows SwarmKit's behavioural model
+  deliberately closely: the same task states, the same restart and update
+  semantics, the same join-token scheme, and a real ingress
+  [routing mesh](../use/publishing-ports.md#the-routing-mesh-every-manager-answers)
+  where every manager answers every published port. What differs is underneath.
+  FreeBSD has no IPVS, so there is **no service VIP** — discovery is DNS
+  round-robin — and the mesh is built from `pf` redirects, which makes it
+  managers-only rather than every-node. [Why FreeBSD](why-freebsd.md) has the
+  full accounting of what the substrate gives and withholds.
+- **`satl build` is the FreeBSD image tool, not a Dockerfile engine.** It builds
+  real images and is meant to be used: multi-layer, multi-stage with
+  `COPY --from`, `FROM scratch`, a content-addressed incremental cache (51 s
+  cold, 7 s when nothing moved) and `--push` to a registry. What it is not is
+  BuildKit — the format is the pkg-shaped subset of a Dockerfile, there is no
+  daemon-side `POST /build`, and it does not build **Linux** images. Pull those
+  from a registry and [run them under the
+  linuxulator](../use/linux-containers.md).
 - **It is not a runtime.** `ocijail` is. If a jail behaves oddly, the question
-  is usually what SatL put in the OCI spec, not how SatL started the process.
+  is usually what SatL put in the OCI spec, not how SatL started the process —
+  which is a much easier question to answer.
+
+If you hit a fourth boundary we have not written down, that is worth telling us
+about: [Before you report a problem](../trouble/getting-help.md) says what makes
+a report useful, and the gaps people actually hit are the ones that get closed
+first.
 
 Next: [Why FreeBSD](why-freebsd.md) for what the substrate gives and withholds,
 or [How it works](how-it-works.md) for the vocabulary and the shape of a

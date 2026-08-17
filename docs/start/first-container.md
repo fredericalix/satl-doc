@@ -29,6 +29,8 @@ That is an unmodified `linux/amd64` image running under the linuxulator, which
 is why `uname` reports a Linux kernel version and a FreeBSD release in the same
 line. `2blf7rzo7agy` is the jail's hostname: the first twelve characters of the
 task id, which is what Docker would call the short container id.
+[Linux containers](../use/linux-containers.md) is the whole story on running
+images built for Linux.
 
 Any OCI distribution registry works — the `(linux/amd64)` on the digest line is
 platform selection choosing the only platform this image offers.

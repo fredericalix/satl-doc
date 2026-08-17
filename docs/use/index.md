@@ -7,6 +7,9 @@ Containers, services, images, networks, volumes and secrets, day to day.
   that changes about `start`, `rm` and `ps`.
 - **[Images](images.md)** — pulling, platform selection, registries and
   authentication, and where the bytes land as ZFS datasets.
+- **[Linux containers](linux-containers.md)** — `linux/amd64` images as jails
+  under the linuxulator: what to load on the host, what the emulation gives you,
+  and exactly where it stops.
 - **[Networks](networks.md)** — the node bridge, overlays, addresses and
   container DNS.
 - **[Publishing ports](publishing-ports.md)** — host mode, ingress mode, and why

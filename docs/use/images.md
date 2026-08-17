@@ -59,26 +59,10 @@ its own in both `satl images` and `satl ps`. `--platform` takes `os/arch` or
 `os/arch/variant`; the variant is accepted and ignored, and a single component
 (`--platform linux`) is refused where Docker would infer the rest.
 
-??? note "What a Linux image needs, and what it does not get"
-
-    `linux.ko` must be loaded — `satld` probes `compat.linux.osrelease` at
-    startup and says so:
-
-    ```
-    INFO satld::node: linuxulator available; linux/* images may be selected osrelease=5.15.0
-    ```
-
-    The jail gets `linprocfs` on `/proc`, `linsysfs` on `/sys`, `devfs`,
-    `fdescfs` and tmpfs mounts, which is enough for glibc and musl binaries,
-    `ps`, and `/proc/self/maps`. What it does not get: **cgroups, systemd and a
-    PID namespace**. An image whose entrypoint is an init system is rejected at
-    task creation with a message saying so, rather than half-started — systemd
-    exits 1 with no output, so runtime detection would be useless.
-
-    `uname -r` inside such a container reports `5.15.0`
-    (`compat.linux.osrelease`), not the FreeBSD version, because glibc keys
-    behaviour off it. And see [Resource limits](resource-limits.md) for what
-    `/proc/meminfo` says.
+Selecting `linux/amd64` has consequences beyond the image itself — what the host
+must have loaded, the mounts the jail is given, and the handful of Linux kernel
+features that are simply absent. [Linux containers](linux-containers.md) is the
+page for all of it.
 
 ## Registries
 

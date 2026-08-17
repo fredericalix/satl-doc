@@ -1,8 +1,13 @@
 # Status
 
-SatL is pre-1.0 and has never been released. This page says what works, what
-does not, and what is missing entirely — in terms of what you would try to do,
-not in terms of internal milestones.
+SatL is at **0.1.0-beta**, its first public release, and still pre-1.0. This page
+says what works, what does not, and what is missing entirely — in terms of what
+you would try to do, not in terms of internal milestones.
+
+"Beta" is meant precisely here: the feature set below is complete enough to run
+real workloads, it has had **no independent security audit**, and no
+compatibility promise is made between pre-1.0 versions. Read the two lists and
+decide for yourself — that is what they are for.
 
 Everything in the first list has been exercised on FreeBSD 15.1 amd64: on a
 single host, and — for anything involving more than one node — on a three-node
@@ -111,7 +116,7 @@ in particular the part about how many managers to run.
 | --- | --- |
 | **Automatic or cluster-wide reclamation** | `satl system prune` exists, but nothing runs it for you and one run reclaims one node's images, layers and volumes. A node never pruned still fills its pool. |
 | **Recovery from a lost quorum** | A cluster whose majority of managers is gone for good cannot be repaired from inside — there is no `ForceNewCluster` — and the only way back is restoring a majority from their own backups. |
-| **Packages** | No FreeBSD port and no `pkg install satl` from the official repos — but `make package` builds a `.pkg` you install with `pkg add`, no repository needed. |
+| **A port or an official repository** | No FreeBSD port and no `pkg install satl` from the official repos. What exists is a package you fetch and add yourself, [`satl-freebsd.pkg`](../start/install.md#5-install-satl) — no repository needed — and `make package` if you would rather build it. |
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
 

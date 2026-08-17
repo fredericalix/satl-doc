@@ -50,7 +50,7 @@ was three verbs behind — which is why `make gen` refuses to run before
 
 ## The generated CLI reference
 
-`docs/reference/cli/` (24 pages) and `docs/reference/satld.toml.sample` are
+`docs/reference/cli/` (28 pages) and `docs/reference/satld.toml.sample` are
 **generated and committed**. Committed, because the site must build with no
 SatL checkout, no Rust toolchain and no FreeBSD. Safe to commit, because
 `make check-gen` regenerates into a scratch directory and diffs — a hand-edit
@@ -131,29 +131,28 @@ tools/          the generator and the four checks
 
 ## Deployment TODO
 
-Nothing here is wired to a host yet. When it is:
+The site is not served from a host yet, but the URLs it will be served from are
+now set: `site_url: https://satl.cc/`, with `repo_url` and `edit_uri` pointing
+at this repository so every page carries a working edit link. What is left:
 
-1. **Add the git remote**, then set `repo_url` and `edit_uri` in `mkdocs.yml`.
-   They are absent on purpose right now — Material renders an "Edit this page"
-   link from them, and with no remote every one of those links would 404.
-2. Set `site_url`. Without it the sitemap and canonical URLs are wrong, and
-   Material's social/SEO features do nothing.
-3. Enable `mkdocs-minify-plugin` for HTML/CSS/JS.
-4. Adopt [`mike`](https://github.com/jimporter/mike) for versioned docs, once
+1. Publish the built `site/` at <https://satl.cc/>, and
+   `satl-freebsd.pkg` at <https://satl.cc/download/> — the install page and the
+   home page both hand readers that URL.
+2. Enable `mkdocs-minify-plugin` for HTML/CSS/JS.
+3. Adopt [`mike`](https://github.com/jimporter/mike) for versioned docs, once
    SatL has more than one release worth documenting. The generated reference is
    version-stamped per page (`<!-- Source: satl 0.1.0 -->`), so the split is
    already meaningful.
-5. Drop the `GIT_DATES` shim in `mkdocs.yml` and the Makefile once the
-   repository has commits — it exists only so a zero-commit checkout can build
-   under `--strict`.
+4. Drop the `GIT_DATES` shim in `mkdocs.yml` and the Makefile — it exists only
+   so a zero-commit checkout can build under `--strict`, which this repository
+   has not been since its first commit.
 
 ## Licence
 
 The documentation in this repository is licensed **CC BY 4.0** — see
 [`LICENSE`](LICENSE).
 
-**This covers the documentation only.** SatL itself currently ships **no
-LICENSE file**, so its licensing is undetermined, and nothing on this site
-should be read as granting a licence to the software. If a licence is chosen
-for SatL, say so explicitly on the site rather than letting readers infer it
-from this one.
+**This covers the documentation only.** SatL itself is **BSD-2-Clause**, the
+same terms as FreeBSD, with an SPDX header on every source file. The two
+licences are separate on purpose: keep them separate on the site too, which
+[`docs/about/status.md`](docs/about/status.md#licensing) does in one sentence.
