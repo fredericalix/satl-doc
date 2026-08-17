@@ -311,8 +311,8 @@ node, including the sharing.
 `--all`, no `--digests`. Filters sent to `GET /images/json` are ignored rather
 than refused.
 
-Several fields of `/images/json` are placeholders: `ParentId` is always empty
-(SatL keeps no parent chain), `Labels` is always null, `SharedSize` is always 0,
-and `Created` is always 0 as noted above. `Size` is the sum of the layer sizes
-and `Containers` is a real count of the tasks using the image, so those two mean
-what they say.
+A few fields of `/images/json` are placeholders: `ParentId` is always empty
+(SatL keeps no parent chain), `Labels` is always null and `SharedSize` is
+always 0. `Created` is real — 0 only for the pre-M7a images the note above is
+about. `Size` is the sum of the layer sizes and `Containers` is a real count
+of the tasks using the image, so those mean what they say.

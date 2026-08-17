@@ -77,7 +77,8 @@ works under the linuxulator, as long as it does not expect cgroups or
 see the machinery move.
 
 **b. Build a FreeBSD nginx image with `satl build`.** A `Satlfile` is the
-pkg-shaped subset of a Dockerfile — no `COPY`, no context:
+pkg-shaped subset of a Dockerfile — `COPY` and `RUN` included, with the
+Satlfile's own directory as the build context:
 
 ```text
 FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
@@ -91,12 +92,12 @@ sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-nginx:latest
 ```
 
 It needs root (packages are installed into the rootfs with `pkg --rootdir`,
-and the linker hints are baked with a `chroot`ed `ldconfig`), a `FROM` image
-already in the local store — `satl pull` it first; the reference above assumes
-a loopback registry seeded with `freebsd/freebsd-runtime:15.1` — and network
-access to the FreeBSD package mirror on the first run. The result registers
-into the node's image store directly; the details are in
-[Images](../use/images.md#satl-build).
+and the linker hints are baked with a `chroot`ed `ldconfig`), and network
+access on the first run — the build pulls the `FROM` image itself (the
+reference above assumes a loopback registry seeded with
+`freebsd/freebsd-runtime:15.1`) and fetches packages from the FreeBSD package
+mirror. The result registers into the node's image store directly; the
+details are in [Images](../use/images.md#satl-build).
 
 **c. Build one somewhere else** and push it to a registry SatL can reach. A
 registry over plain HTTP has to be reachable as such; SatL treats

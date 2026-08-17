@@ -3,7 +3,7 @@
 
 # `satl build` { #satl-build }
 
-Build a FreeBSD image from a Satlfile into this node's store (M6f)
+Build a FreeBSD image from a Satlfile into this node's store
 
 ```console
 $ satl build [OPTIONS] --tag <NAME[:TAG]>

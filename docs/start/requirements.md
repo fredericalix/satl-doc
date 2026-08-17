@@ -109,8 +109,9 @@ INFO satld::node: kern.racct.enable=1; rctl(8) resource limits are enforced
 ## Nice to have
 
 - **A container registry you can reach.** SatL pulls from any OCI registry.
-  There is no `satl build`, so if you have no registry you also have no images
-  — [First container](first-container.md) deals with this honestly.
+  `satl build` exists, but it builds FreeBSD images into one node's store —
+  for anything else, or to share an image across nodes, you need a registry.
+  [First container](first-container.md) deals with this honestly.
 - **The `docker` CLI**, if you have it. `docker -H unix:///var/run/satl.sock
   version` works, and it is a useful independent check that the API surface is
   what it claims to be.

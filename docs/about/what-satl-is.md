@@ -131,8 +131,10 @@ Three smaller consequences of the same shape:
   and update semantics, the same join-token scheme — but the data plane is
   FreeBSD's, and that changes real things. There is no service VIP and no
   routing mesh; see [Why FreeBSD](why-freebsd.md).
-- **It is not a build tool.** There is no `satl build` and no BuildKit. SatL
-  runs images; something else has to produce them.
+- **It is not a build tool.** `satl build` covers the pkg-shaped FreeBSD case
+  — a `Satlfile`, not a Dockerfile — but there is no BuildKit and no
+  daemon-side build. SatL runs images; anything beyond that subset, something
+  else has to produce.
 - **It is not a runtime.** `ocijail` is. If a jail behaves oddly, the question
   is usually what SatL put in the OCI spec, not how SatL started the process.
 

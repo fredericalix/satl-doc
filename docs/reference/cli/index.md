@@ -23,7 +23,8 @@ $ satl [OPTIONS] <COMMAND>
 | [`satl inspect`](inspect.md) | Return low-level information on containers |
 | [`satl pull`](pull.md) | Download an image from a registry |
 | [`satl push`](push.md) | Push an image from this node's store to a registry (client-side, like `satl build`) |
-| [`satl build`](build.md) | Build a FreeBSD image from a Satlfile into this node's store (M6f) |
+| [`satl tag`](tag.md) | Create a tag `TARGET_IMAGE` that refers to `SOURCE_IMAGE` |
+| [`satl build`](build.md) | Build a FreeBSD image from a Satlfile into this node's store |
 | [`satl images`](images.md) | List images |
 | [`satl volume`](volume.md) | Manage volumes |
 | [`satl network`](network.md) | Manage networks |

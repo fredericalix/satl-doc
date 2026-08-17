@@ -150,9 +150,9 @@ them and a YAML anchor block usually lives in one.
 
     ```console
     $ satl compose up
-    Error: /srv/shop/compose.yaml: services.web.build: SatL has no image builder:
-    build the image with a tool that can push to a registry and name the result
-    with `image:`
+    Error: /srv/shop/compose.yaml: services.web.build: compose build: is not
+    supported: build the image with `satl build` (or any builder that can push
+    to a registry) and name the result with `image:`
     ```
 
     A key with no bespoke reason of its own still fails — with the list of keys
@@ -162,7 +162,7 @@ The four you are most likely to meet, bringing a file from a single host:
 
 | What is in the file | Why it is refused | What to do |
 | --- | --- | --- |
-| `build:` | there is no image builder | build and push elsewhere, then name the result with `image:` |
+| `build:` | compose `build:` is not supported — builds are `satl build`'s job, not the deploy path's | build with `satl build` (or any builder that can push to a registry), then name the result with `image:` |
 | `./conf:/etc/nginx` | a relative bind is a path on *your* workstation, not on the nodes | deliver the file as a `config:`, or use an absolute path that exists on every node |
 | `${TAG}` | there is no interpolation, and passing it through literally would ask for the tag `${TAG}` | substitute before deploying, or generate the file |
 | `driver: bridge` on a network | a stack spans the cluster and only the overlay driver does | drop it — the default is `overlay` — or use `satl network create -d bridge` for a node-local object |

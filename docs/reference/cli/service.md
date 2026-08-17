@@ -160,7 +160,7 @@ $ satl service update [OPTIONS] <SERVICE>
 | <code>--placement-pref-rm &lt;DESCRIPTOR&gt;</code> | Remove a placement preference by descriptor (`node.labels.zone`) |
 | <code>--label-add &lt;KEY=VALUE&gt;</code> | Add or update a service label |
 | <code>--label-rm &lt;KEY&gt;</code> | Remove a service label |
-| <code>--limit-cpu &lt;VALUE&gt;</code> | Limit CPUs. `0` clears the limit (M6g: a resources-only update is a hot resize — the live tasks are not replaced) |
+| <code>--limit-cpu &lt;VALUE&gt;</code> | Limit CPUs. `0` clears the limit. A resources-only update is a hot resize — the live tasks are not replaced |
 | <code>--limit-memory &lt;BYTES&gt;</code> | Limit memory. `0` clears the limit |
 | <code>--reserve-cpu &lt;VALUE&gt;</code> | Reserve CPUs. `0` clears the reservation |
 | <code>--reserve-memory &lt;BYTES&gt;</code> | Reserve memory. `0` clears the reservation |

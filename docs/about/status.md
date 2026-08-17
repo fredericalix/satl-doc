@@ -51,9 +51,10 @@ series names where dockerd defines them, so off-the-shelf dashboards render;
 `satl_*` for everything SatL-specific, including per-task rctl usage.
 
 **Image builds.** `satl build` assembles a FreeBSD OCI image from a `Satlfile`
-— a `FROM` line, a package list, env, labels, an entrypoint — and registers it
-in the node's store. There is no daemon-side build endpoint and no `COPY`; the
-format is deliberately the pkg-shaped subset of Dockerfile. See
+— a `FROM` line, a package list, `COPY`/`RUN` steps, env, labels, an
+entrypoint — and registers it in the node's store. The build runs client-side
+on the node's host; there is no daemon-side build endpoint, and the format is
+deliberately the pkg-shaped subset of Dockerfile. See
 [Images](../use/images.md#satl-build).
 
 **Hot vertical resize.** A `service update` that changes only resource limits
