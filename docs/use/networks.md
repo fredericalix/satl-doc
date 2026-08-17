@@ -212,6 +212,79 @@ plumbing (the guard anchor, `enc0`, one node-wide sysctl) is installed by
     builds its VTEP on the default port and blackholes until restarted on the
     new build.
 
+## Why VXLAN, when containers only speak IP { #why-vxlan }
+
+A VXLAN segment is "a virtual Layer 2 (Ethernet) network that is overlaid in a
+Layer 3 (IP/UDP) network" — `vxlan(4)`'s own words. The objection writes itself:
+applications speak IP, nothing in a container needs an Ethernet broadcast
+domain, so why carry one across the cluster?
+
+SatL does not carry one. It uses VXLAN as a multiplexed IP tunnel with a 24-bit
+tenant id, and switches off every Layer 2 behaviour the objection names:
+
+| What a VXLAN segment does by default | What SatL configures |
+|---|---|
+| learns MAC → VTEP from arriving frames | `-vxlanlearn` — learning off, so every forwarding-table entry is one SatL put there from the cluster store |
+| floods broadcast, multicast and unknown unicast across the segment | `vxlanremote` points at a deliberately unroutable address, so those frames go nowhere |
+| resolves a peer's MAC by ARP over the segment | every jail gets a static `arp -s` entry per endpoint, so no ARP is ever sent |
+| hands out MAC addresses that mean nothing | the MAC **is** the address — `02:42:` followed by the four octets of the IPv4 address, derived identically on both ends |
+
+What survives is not a broadcast domain, it is an addressing convention: a
+frame's destination MAC is a rewriting of its destination IP, and the forwarding
+table maps that to the node holding the address. Nothing learns, nothing floods,
+and no behaviour depends on the segment acting like a switch.
+
+So the Ethernet layer is not there for broadcast. It is there for four things
+that are harder to obtain another way on this platform.
+
+**The VNI is a tenant id the kernel enforces.** One vxlan interface per network,
+one bridge behind it: two networks can carry the same subnet and never see each
+other, with no rule to write and no filter to get wrong. Separation is a
+property of the encapsulation rather than of a policy someone has to keep
+correct.
+
+**It is the same plumbing as node-local networking.** A container's interface is
+one end of an `epair(4)` on a bridge whether its network is node-local or
+overlaid, and the jail's configuration is identical either way — an address, a
+default route, its own stack. One model, one teardown path, one troubleshooting
+procedure; the overlay only adds an interface in front of the bridge.
+
+**FreeBSD supports it in the kernel, and nothing else fits.** `if_vxlan` ships in
+base with a forwarding table SatL programs directly. `gif(4)` and `gre(4)` are
+point-to-point IP tunnels: one interface per *pair* of nodes, no tenant id, and
+no Ethernet mode on FreeBSD to bridge in the first place. `wg(4)` is a Layer 3
+VPN with its own key model and no notion of a segment. There is no Geneve driver
+at all. The alternative to VXLAN here is writing the encapsulation.
+
+**The wire format is standard and legible.** `tcpdump -ni <underlay> 'udp port
+4789'` on any node shows the tunnel with its VNI in the header — see
+[4789/UDP](../reference/ports.md#vxlan). Diagnosing an overlay you cannot
+observe is a different job entirely.
+
+What the choice costs, stated plainly:
+
+- **50 bytes per packet** (84 on an [encrypted network](#encrypted)), so the
+  overlay MTU is the underlay's minus that — 1450, or 1416 encrypted, on a
+  1500-byte underlay. Getting it wrong is a throughput cliff rather than an
+  outage, which is why it is
+  [measured and not computed](../trouble/overlay.md#fragmentation).
+- **Broadcast does not leave a node.** Two containers of one network on the same
+  host share a bridge, so a broadcast reaches them; the same frame addressed off
+  the node goes to the blackhole and is dropped. An application that finds its
+  peers by broadcast or multicast will find only the local ones. Use
+  [container DNS](#container-dns) — services are what SatL resolves.
+- **The forwarding table has to be distributed.** With learning off, every
+  endpoint is an entry every participating node must hold, written from the Raft
+  store. That is deliberate — a learned table would be a second source of truth
+  for something the cluster already knows — but it is work a textbook VXLAN would
+  have done by itself.
+
+A routed overlay — per-container host routes distributed to every node, no MAC
+layer, no encapsulation for same-subnet traffic — is a legitimate design, and on
+Linux a common one. It was not the cheaper one here: it trades the kernel's
+tenant separation for filtering rules, and one container-interface model for
+two.
+
 ## There is no `bridge`, `host` or `none`
 
 ```console
