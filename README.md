@@ -129,21 +129,73 @@ tools/          the generator and the four checks
 .cache/         gitignored: locally built satl/satld, scratch space
 ```
 
-## Deployment TODO
+## Deployment
 
-The site is not served from a host yet, but the URLs it will be served from are
-now set: `site_url: https://satl.cc/`, with `repo_url` and `edit_uri` pointing
-at this repository so every page carries a working edit link. What is left:
+The site is served at <https://docs.satl.cc> by nginx on `obsd0.fredalix.com`,
+an OpenBSD 7.9 host, from a static build.
+Publishing is one command:
 
-1. Publish the built `site/` at <https://satl.cc/>, and
-   `satl-freebsd.pkg` at <https://satl.cc/download/> — the install page and the
-   home page both hand readers that URL.
-2. Enable `mkdocs-minify-plugin` for HTML/CSS/JS.
-3. Adopt [`mike`](https://github.com/jimporter/mike) for versioned docs, once
+```sh
+make deploy
+```
+
+That runs `make check` first, so nothing is published that would not build
+strictly, and it refuses a working tree with uncommitted changes.
+Page dates are read from git: publishing uncommitted work would date every page
+by a commit that does not contain what is being published.
+`make deploy ALLOW_DIRTY=1` overrides that, in the same shape and for the same
+reason as `ALLOW_STALE`.
+
+`tools/deploy.sh` does the transport, and it is tar over ssh rather than rsync
+because the target has no rsync package and its base `openrsync` speaks protocol
+27 against macOS's 29 — the obvious tool does not connect.
+It unpacks into `releases/<UTC timestamp>/`, counts the extracted files against
+what was sent and checks that `index.html`, `404.html` and `sitemap.xml` arrived
+before publishing anything, then moves the `current` symlink and prunes to the
+last three releases.
+A rollback is therefore a symlink change:
+
+```sh
+ssh fralix@obsd0.fredalix.com \
+    'cd /var/www/htdocs/docs.satl.cc && ln -sfh releases/<stamp> current'
+```
+
+Two things about that host are worth knowing before touching it.
+
+**nginx is chrooted to `/var/www`**, and the OpenBSD port strips that prefix from
+the paths in `nginx.conf` — so `root /var/www/htdocs/x` opens `/htdocs/x` inside
+the jail and finds the same file, but a symlink whose *target* is absolute is
+resolved inside the jail, where `/var/www` does not exist.
+The `current` symlink therefore points at `releases/<stamp>` relatively.
+Getting this wrong publishes a complete, correct set of files that nginx answers
+404 for on every path, with nothing at all in the error log, because `try_files`
+does not log `ENOENT`.
+
+**The certificate comes from `acme-client(1)`**, base OpenBSD, renewed by a root
+cron entry at 03:17 that reloads nginx only when a renewal actually happened
+(`acme-client` exits 2 when there is nothing to do).
+The previous occupant of this host renewed a certificate for a domain whose DNS
+had moved away, failed every night for four months, and nobody saw it because
+`root` had no mail alias.
+It has one now — which is worth re-testing rather than assuming, since the first
+test message was delivered but marked `DMARC:Quarantine`.
+
+The server configuration is not in this repository.
+
+What is left:
+
+1. `satl-freebsd.pkg` at <https://satl.cc/download/> — the install page and the
+   home page both hand readers that URL, and `satl.cc` is hosted elsewhere.
+2. The site loads Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`), so
+   every reader reaches a third party. `theme.font: false` removes that and
+   changes the typography, which is a design decision, not a deployment one.
+3. Enable `mkdocs-minify-plugin` for HTML/CSS/JS. Note that adding a plugin
+   breaks `make build` on any machine without it, `install-deps` included.
+4. Adopt [`mike`](https://github.com/jimporter/mike) for versioned docs, once
    SatL has more than one release worth documenting. The generated reference is
    version-stamped per page (`<!-- Source: satl 0.1.0 -->`), so the split is
    already meaningful.
-4. Drop the `GIT_DATES` shim in `mkdocs.yml` and the Makefile — it exists only
+5. Drop the `GIT_DATES` shim in `mkdocs.yml` and the Makefile — it exists only
    so a zero-commit checkout can build under `--strict`, which this repository
    has not been since its first commit.
 
