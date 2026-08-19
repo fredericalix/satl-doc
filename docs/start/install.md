@@ -71,16 +71,8 @@ It installs the same four files a source build does, listed below.
     A cluster wants the same build everywhere.
     `fetch` once, `scp` the file around, `pkg add` on each machine — mixing versions across nodes is not a configuration SatL is tested in.
 
-**From source instead**, if you would rather build it — this is also how you get an unreleased fix, and it is the only path that needs a Rust toolchain:
-
-```sh
-git clone https://github.com/fredericalix/satl
-cd satl
-sudo make install       # builds in release mode, then installs
-make package            # or: build the package yourself, into dist/satl-<version>.pkg
-```
-
-That is [Install from source](install-from-source.md), which replaces this step and nothing else on this page — the toolchain, the four files it installs, how the `.pkg` is assembled and what it gets stamped with.
+[Install from source](install-from-source.md) replaces this step, and nothing else on this page.
+Take it if you want a fix that is not in a release yet, or if you would rather build the `.pkg` for your own nodes — it is the only path that needs a Rust toolchain.
 
 Either way you now have four files installed:
 
@@ -95,9 +87,9 @@ Note the last line carefully.
 
 ## 6. Write `satld.toml` — do not skip this
 
-!!! danger "`make install` ships a sample, not a config"
+!!! danger "The install ships a sample, not a config"
 
-    It installs `satld.toml.sample`.
+    `pkg add` — like `make install` — writes `satld.toml.sample`.
     It does **not** create `satld.toml`.
     A missing config file is perfectly legal — the daemon runs on built-in defaults — and the built-in default for `pf_mode` is **`check`**.
 
@@ -113,7 +105,15 @@ Note the last line carefully.
     Nothing is logged as an error, because nothing failed.
     This catches essentially every first install.
 
-Write the file:
+Start from the sample rather than an empty file — it carries every key, with its default and the reason you would change it:
+
+```sh
+cp /usr/local/etc/satl/satld.toml.sample /usr/local/etc/satl/satld.toml
+```
+
+That copy on its own changes nothing, because every line in the sample is commented out — `pf_mode` is still `check`.
+Uncomment it and set it to `enforce`.
+Stripped of its comments, that is the whole config an ordinary first install needs:
 
 --8<-- "satld-toml-minimal.md"
 

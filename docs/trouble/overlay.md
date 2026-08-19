@@ -366,7 +366,8 @@ kldstat -m if_vxlan
 Load it at boot anyway, so a failure surfaces once, at boot, rather than on the first `satl network create -d overlay`:
 
 ```sh
-echo 'if_vxlan_load="YES"' >> /boot/loader.conf   # sysrc(8) is for rc.conf, not loader.conf
+echo 'if_vxlan_load="YES"' | tee -a /boot/loader.conf   # sysrc(8) is for rc.conf, not loader.conf;
+                                                        # `>>` under doas/sudo opens the file as you
 kldload if_vxlan
-kldstat -m if_vxlan                                # expect one line
+kldstat -m if_vxlan                                     # expect one line
 ```

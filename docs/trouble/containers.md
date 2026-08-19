@@ -150,9 +150,10 @@ rctl -h jail:<container id>
 **Fix**
 
 ```sh
-echo 'kern.racct.enable=1' >> /boot/loader.conf   # sysrc(8) rejects dotted names
+echo 'kern.racct.enable=1' | tee -a /boot/loader.conf   # sysrc(8) rejects dotted names;
+                                                        # `>>` under doas/sudo opens the file as you
 shutdown -r now
-sysctl kern.racct.enable                          # expect 1
+sysctl kern.racct.enable                                # expect 1
 ```
 
 It is a boot-time tunable: it cannot be switched on at runtime.

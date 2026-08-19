@@ -179,7 +179,8 @@ Two need a reboot or a foreground window rather than a config change:
 
 ```sh
 # resource limits: a boot-time tunable, not a runtime sysctl
-echo 'kern.racct.enable=1' >> /boot/loader.conf     # sysrc(8) rejects dotted names
+echo 'kern.racct.enable=1' | tee -a /boot/loader.conf   # sysrc(8) rejects dotted names;
+                                                        # `>>` under doas/sudo opens the file as you
 shutdown -r now
 
 # IP forwarding: both, so it survives the next boot
