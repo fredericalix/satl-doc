@@ -65,13 +65,19 @@ COPYFILE_DISABLE=1 tar -czf - -C "$SITE" . | ssh "$HOST" "
 
 	chmod -R a+rX \$d
 
+	# The symlink target is RELATIVE, and that is not a style choice. nginx on
+	# the host is chrooted to /var/www, so it resolves the target inside that
+	# jail, where an absolute /var/www/... does not exist. The symptom of an
+	# absolute target is a 404 on every page with nothing whatsoever in the
+	# error log, because try_files does not log ENOENT.
+	#
 	# ln -sfh replaces the symlink without following it -- see ln(1) on
 	# OpenBSD. It is unlink then symlink, so there is a sub-millisecond window
-	# where \$ROOT/current does not exist; with open_file_cache holding
-	# metadata for 30s anyway, that is noise. It is also the safe form: mv
-	# would stat() the existing symlink, see a directory, and move the new
-	# link *inside* the old release.
-	ln -sfh \$d $ROOT/current
+	# where current does not exist; with open_file_cache holding metadata for
+	# 30s anyway, that is noise. It is also the safe form: mv would stat() the
+	# existing symlink, see a directory, and move the new link *inside* the old
+	# release.
+	cd $ROOT && ln -sfh releases/$REL current
 
 	cd $ROOT/releases && ls -1dt * | tail -n +$PRUNE | while read old; do
 		rm -rf \"\$old\"
