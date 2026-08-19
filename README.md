@@ -84,7 +84,7 @@ than its last commit.
 ```
 check_drift: the `satl` binary does not match the SatL source.
   binary : /usr/local/bin/satl (17 verbs)
-  source : /home/fralix/src/satl/crates/satl-cli/src/cli.rs (20 verbs)
+  source : /home/you/src/satl/crates/satl-cli/src/cli.rs (20 verbs)
   in the source but NOT in the binary: ca, secret, config
 ```
 
@@ -129,58 +129,17 @@ tools/          the generator and the four checks
 .cache/         gitignored: locally built satl/satld, scratch space
 ```
 
-## Deployment
+## Publishing
 
-The site is served at <https://docs.satl.cc> by nginx on `obsd0.fredalix.com`,
-an OpenBSD 7.9 host, from a static build.
-Publishing is one command:
-
-```sh
-make deploy
-```
-
-That runs `make check` first, so nothing is published that would not build
-strictly, and it refuses a working tree with uncommitted changes.
-Page dates are read from git: publishing uncommitted work would date every page
-by a commit that does not contain what is being published.
+The built site is published with `make deploy`, which runs `make check` first
+and refuses a working tree with uncommitted changes.
+Page dates are read from git, so publishing uncommitted work would date every
+page by a commit that does not contain what is being published.
 `make deploy ALLOW_DIRTY=1` overrides that, in the same shape and for the same
 reason as `ALLOW_STALE`.
 
-`tools/deploy.sh` does the transport, and it is tar over ssh rather than rsync
-because the target has no rsync package and its base `openrsync` speaks protocol
-27 against macOS's 29 — the obvious tool does not connect.
-It unpacks into `releases/<UTC timestamp>/`, counts the extracted files against
-what was sent and checks that `index.html`, `404.html` and `sitemap.xml` arrived
-before publishing anything, then moves the `current` symlink and prunes to the
-last three releases.
-A rollback is therefore a symlink change:
-
-```sh
-ssh fralix@obsd0.fredalix.com \
-    'cd /var/www/htdocs/docs.satl.cc && ln -sfh releases/<stamp> current'
-```
-
-Two things about that host are worth knowing before touching it.
-
-**nginx is chrooted to `/var/www`**, and the OpenBSD port strips that prefix from
-the paths in `nginx.conf` — so `root /var/www/htdocs/x` opens `/htdocs/x` inside
-the jail and finds the same file, but a symlink whose *target* is absolute is
-resolved inside the jail, where `/var/www` does not exist.
-The `current` symlink therefore points at `releases/<stamp>` relatively.
-Getting this wrong publishes a complete, correct set of files that nginx answers
-404 for on every path, with nothing at all in the error log, because `try_files`
-does not log `ENOENT`.
-
-**The certificate comes from `acme-client(1)`**, base OpenBSD, renewed by a root
-cron entry at 03:17 that reloads nginx only when a renewal actually happened
-(`acme-client` exits 2 when there is nothing to do).
-The previous occupant of this host renewed a certificate for a domain whose DNS
-had moved away, failed every night for four months, and nobody saw it because
-`root` had no mail alias.
-It has one now — which is worth re-testing rather than assuming, since the first
-test message was delivered but marked `DMARC:Quarantine`.
-
-The server configuration is not in this repository.
+Where the site is published, and how that host is configured, is in
+`deployment.md` and `deploy.conf`. Neither is tracked here.
 
 What is left:
 

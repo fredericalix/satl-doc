@@ -17,11 +17,15 @@ CACHE_TARGET?=	${.CURDIR}/.cache/target
 SATL_BIN?=	${CACHE_TARGET}/release/satl
 SATLD_BIN?=	${CACHE_TARGET}/release/satld
 
-# Where the built site is published. The release directory and the `current`
-# symlink live under DEPLOY_ROOT, owned by the deploying user, so publishing --
-# the frequent operation -- needs no privilege escalation at all.
-DEPLOY_HOST?=	fralix@obsd0.fredalix.com
-DEPLOY_ROOT?=	/var/www/htdocs/docs.satl.cc
+# Where the built site is published. DEPLOY_HOST and DEPLOY_ROOT deliberately
+# have no default here: this repository is public, and the host, the account and
+# the paths do not belong in it. They live in deploy.conf, which is untracked --
+# see deployment.md, also untracked.
+#
+# `.-include` is bmake's include-if-it-exists, so a checkout with no deploy.conf
+# still parses every other target; only `deploy` fails, and it says why.
+.-include "${.CURDIR}/deploy.conf"
+
 DEPLOY_KEEP?=	3
 
 CARGO?=		cargo
@@ -78,7 +82,7 @@ help:
 	@echo ''
 	@echo 'Variables: SATL_SRC=${SATL_SRC}'
 	@echo '           SATL_BIN=${SATL_BIN}'
-	@echo '           DEPLOY_HOST=${DEPLOY_HOST}'
+	@echo '           DEPLOY_HOST=${DEPLOY_HOST:U(unset -- see deploy.conf)}'
 
 install-deps:
 	pkg install -y py312-mkdocs py312-mkdocs-material \

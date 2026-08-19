@@ -24,3 +24,9 @@ __pycache__/
 # so a hand-edit or a moved-on binary fails the build instead of shipping. The
 # pages also carry no timestamp, precisely so the diff stays empty when nothing
 # has actually changed.
+
+# Deployment. The host, the account, the paths and the runbook: this repository
+# is public and none of that belongs in it. `make deploy` reads deploy.conf and
+# refuses, with an explanation, when it is absent.
+/deploy.conf
+/deployment.md

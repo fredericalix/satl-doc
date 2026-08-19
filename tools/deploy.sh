@@ -24,10 +24,21 @@
 # Which is what makes a rollback a symlink change rather than a rebuild.
 set -e
 
-HOST=${DEPLOY_HOST:-fralix@obsd0.fredalix.com}
-ROOT=${DEPLOY_ROOT:-/var/www/htdocs/docs.satl.cc}
+HOST=${DEPLOY_HOST:-}
+ROOT=${DEPLOY_ROOT:-}
 KEEP=${DEPLOY_KEEP:-3}
 SITE=${SITE:-site}
+
+# No defaults for the first two: this repository is public. They come from
+# deploy.conf, which the Makefile includes and git ignores.
+if [ -z "$HOST" ] || [ -z "$ROOT" ]; then
+	echo "deploy: DEPLOY_HOST and DEPLOY_ROOT are not set." >&2
+	echo "" >&2
+	echo "They live in deploy.conf at the root of this checkout, which is" >&2
+	echo "untracked on purpose. The procedure is in deployment.md, also" >&2
+	echo "untracked. Both are described in README's Publishing section." >&2
+	exit 1
+fi
 
 if [ ! -f "$SITE/index.html" ]; then
 	echo "deploy: no $SITE/index.html -- run \`make build\` first" >&2
