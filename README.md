@@ -1,6 +1,6 @@
 # SatL documentation
 
-The source of <https://satl.docs> (no host yet — see [Deployment](#deployment-todo)).
+The source of <https://docs.satl.cc>
 
 This repository builds **the documentation site**, not SatL. SatL itself lives
 in a separate checkout, is never modified from here, and is only ever read.
