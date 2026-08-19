@@ -16,7 +16,7 @@ copyright: >-
   Documentation licensed under
   <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
 
-site_url: https://satl.cc/
+site_url: https://docs.satl.cc/
 repo_url: https://github.com/fredericalix/satl-doc
 repo_name: fredericalix/satl-doc
 # `edit_uri` points at the docs repository, not at SatL: a reader fixing a

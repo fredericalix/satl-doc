@@ -17,6 +17,13 @@ CACHE_TARGET?=	${.CURDIR}/.cache/target
 SATL_BIN?=	${CACHE_TARGET}/release/satl
 SATLD_BIN?=	${CACHE_TARGET}/release/satld
 
+# Where the built site is published. The release directory and the `current`
+# symlink live under DEPLOY_ROOT, owned by the deploying user, so publishing --
+# the frequent operation -- needs no privilege escalation at all.
+DEPLOY_HOST?=	fralix@obsd0.fredalix.com
+DEPLOY_ROOT?=	/var/www/htdocs/docs.satl.cc
+DEPLOY_KEEP?=	3
+
 CARGO?=		cargo
 OVERLAY?=	${.CURDIR}/overlay/cli.yml
 CLI_OUT?=	${.CURDIR}/docs/reference/cli
@@ -38,8 +45,18 @@ STALE_GEN=
 STALE_DRIFT=
 .endif
 
+# `make deploy ALLOW_DIRTY=1` publishes a tree with uncommitted changes. Page
+# dates come from git, so publishing uncommitted work dates every page by a
+# commit that does not contain it -- the site would claim a freshness it cannot
+# show. Note the same `defined() && !empty()` as above, and for the same reason.
+.if defined(ALLOW_DIRTY) && !empty(ALLOW_DIRTY)
+DIRTY_OK=	true
+.else
+DIRTY_OK=	false
+.endif
+
 .PHONY: help install-deps gen gen-fresh serve build check-gen check-drift \
-	check-config check-nav check clean
+	check-config check-nav check check-clean-tree deploy clean
 
 help:
 	@echo 'SatL documentation site.'
@@ -56,10 +73,12 @@ help:
 	@echo '  make check-drift    fail if the satl binary does not match its source'
 	@echo '  make check-config   fail if satld.toml.md and struct ConfigFile differ'
 	@echo '  make check-nav      fail if mkdocs.yml nav and docs/ disagree'
+	@echo '  make deploy         build, check, then publish site/ to ${DEPLOY_HOST}'
 	@echo '  make clean          remove site/ and generator caches'
 	@echo ''
 	@echo 'Variables: SATL_SRC=${SATL_SRC}'
 	@echo '           SATL_BIN=${SATL_BIN}'
+	@echo '           DEPLOY_HOST=${DEPLOY_HOST}'
 
 install-deps:
 	pkg install -y py312-mkdocs py312-mkdocs-material \
@@ -187,6 +206,37 @@ check-nav:
 check: build check-nav check-config check-drift check-gen
 	@echo ''
 	@echo 'make check: all checks passed.'
+
+# --------------------------------------------------------------------------- #
+# deployment
+# --------------------------------------------------------------------------- #
+
+# `check` already depends on `build`, so the site is built and verified exactly
+# once before anything leaves the machine. Note that on a host with no SatL
+# binaries -- which is any host but the FreeBSD one -- check-drift and check-gen
+# announce themselves as skipped, and the gate is then only build --strict,
+# check-nav and check-config. Read the notices; they are the difference between
+# a verified publish and a plausible one.
+# First, not last: being told to commit is worth knowing before a full strict
+# build, not after it. bmake walks prerequisites left to right.
+check-clean-tree:
+	@if [ ${DIRTY_OK} = false ] && \
+	    [ -n "`git -C ${.CURDIR} status --porcelain`" ]; then \
+	    echo '' >&2; \
+	    echo 'deploy: the working tree has uncommitted changes.' >&2; \
+	    echo '' >&2; \
+	    echo 'Page dates are read from git, so publishing now would date every' >&2; \
+	    echo 'page by a commit that does not contain what is being published.' >&2; \
+	    echo 'Commit first, or `make deploy ALLOW_DIRTY=1` if you mean it.' >&2; \
+	    echo '' >&2; \
+	    git -C ${.CURDIR} status --short >&2; \
+	    exit 1; \
+	fi
+
+deploy: check-clean-tree check
+	@DEPLOY_HOST=${DEPLOY_HOST} DEPLOY_ROOT=${DEPLOY_ROOT} \
+	    DEPLOY_KEEP=${DEPLOY_KEEP} SITE=${.CURDIR}/site \
+	    sh ${.CURDIR}/tools/deploy.sh
 
 clean:
 	rm -rf ${.CURDIR}/site ${.CURDIR}/.cache/check-gen
