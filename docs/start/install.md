@@ -71,20 +71,18 @@ It installs the same four files a source build does, listed below.
     A cluster wants the same build everywhere.
     `fetch` once, `scp` the file around, `pkg add` on each machine — mixing versions across nodes is not a configuration SatL is tested in.
 
-From source instead, if you would rather build it — this is also how you get an
-unreleased fix, and it is the only path that needs a Rust toolchain:
+**From source instead**, if you would rather build it — this is also how you get an unreleased fix, and it is the only path that needs a Rust toolchain:
 
 ```sh
-git clone https://github.com/fredericalix/satl satl
+git clone https://github.com/fredericalix/satl
 cd satl
-make install          # builds in release mode, then installs
-make package          # or: build the package yourself, into dist/satl-<version>.pkg
+sudo make install       # builds in release mode, then installs
+make package            # or: build the package yourself, into dist/satl-<version>.pkg
 ```
 
-`make install` needs root (it
-writes under `/usr/local`), builds into `target/install` deliberately — so that
-a build under `sudo` cannot leave root-owned artifacts in the tree your
-unprivileged builds use — and installs four things:
+That is [Install from source](install-from-source.md), which replaces this step and nothing else on this page — the toolchain, the four files it installs, how the `.pkg` is assembled and what it gets stamped with.
+
+Either way you now have four files installed:
 
 | Path | What |
 | --- | --- |
@@ -123,7 +121,7 @@ Write the file:
 The third mode, `disabled`, generates and logs the rules and never invokes `pfctl` at all — for hosts with no pf.
 
 Every other key is optional.
-The commented sample lists them, and the [`satld.toml` reference](../reference/satld-toml.md) documents all thirteen, including two the sample does not mention.
+The commented sample lists them, and the [`satld.toml` reference](../reference/satld-toml.md) documents all sixteen, including two the sample does not mention.
 The ones you are most likely to need on a real host:
 
 - `zfs_root` — if your pool is not `zroot`.
