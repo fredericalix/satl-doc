@@ -7,7 +7,7 @@ Two entries below need a reboot or a package the machine may not have, and one o
 
 | What | Why | If it is absent |
 | --- | --- | --- |
-| **FreeBSD 15.1, amd64** | SatL is built and tested only here. It uses jail, VNET, ZFS, pf, rctl and `if_vxlan` directly, through `sysctl`, `ifconfig`, `pfctl`, `zfs` and `ocijail`. | Untested. Nothing is deliberately 15.1-only, but nothing else has been run. |
+| **FreeBSD 15 on amd64** | SatL is built and run on 15.1-RELEASE and on 15-CURRENT. It uses jail, VNET, ZFS, pf, rctl and `if_vxlan` directly, through `sysctl`, `ifconfig`, `pfctl`, `zfs` and `ocijail`. | Untested. Nothing is deliberately tied to one release, and nothing older has been run — see [Which FreeBSD](#which-freebsd). |
 | **A ZFS pool, and a root dataset for SatL** | ZFS is not one storage driver among several: a layer *is* a dataset, applying a layer is snapshot + clone, and a container's writable layer is a clone. | `satld` **refuses to start**, with the command to fix it in the error. See below. |
 | **root** | `satld` creates jails, ZFS datasets and network interfaces, and loads pf anchors. | The daemon cannot install its devfs ruleset, and every jail creation fails at `/dev`. |
 | **`ocijail`** — `pkg install ocijail` | SatL implements no runtime. It generates an OCI spec and drives the `ocijail` binary. | Every task fails at the create step. Nothing fails at startup, which makes it a confusing way to find out. |
@@ -17,6 +17,27 @@ Two entries below need a reboot or a package the machine may not have, and one o
 | **`kern.racct.enable=1` in `/boot/loader.conf`, then a reboot** | Resource accounting is a boot-time tunable; `rctl(8)` rules cannot be installed without it. | `--memory` and `--cpus` are **accepted and silently not enforced**. `satld` warns at startup; nothing else complains, ever. |
 | **IP forwarding** — `gateway_enable=YES` | Container traffic is *routed* between the bridge and the egress interface. | Containers have **no outbound connectivity**, while inbound published ports still answer — which is the most misleading failure mode in the whole system. |
 | **Ports 2377/tcp, 2378/tcp, 4789/udp between nodes** | Only if you will cluster. 2377 is the mTLS control plane, 2378 the CA bootstrap a first-time joiner needs, 4789 the VXLAN data plane. If you will also use [encrypted overlays](../use/networks.md#encrypted): ESP (IP protocol 50) as well — no UDP on 4790–4999. | Joins hang or fail; overlay traffic goes nowhere while every interface reports itself healthy. |
+
+## Which FreeBSD { #which-freebsd }
+
+**15.1-RELEASE and 15-CURRENT, on amd64.**
+Both have been run: the single-host material on this site and the three-node cluster material were exercised on each.
+
+There is no version check anywhere in SatL — nothing reads `kern.osrelease` and compares it, and nothing is conditionally compiled — so "15.1" throughout this site is a statement about where a thing was *measured*, never about what the daemon will accept.
+That cuts both ways, and it is worth being plain about which:
+
+- an older FreeBSD is not refused, it is simply untested, and the interfaces
+  SatL drives (`if_vxlan`'s forwarding table, `rctl`, VNET, the `pf` anchors,
+  `ocijail`) are exactly the ones that changed most recently;
+- **amd64 is not a preference, it is the only architecture built.**
+  There is no arm64 package and no cross-build.
+
+Two limits that follow the platform rather than the release, both listed in full under [what SatL does not do](../reference/out-of-scope.md#platform):
+
+- **IPv4 only.**
+  SatL assigns no IPv6 addresses to containers, and IPv6 subnets on network
+  creation are refused rather than accepted and ignored.
+- **ZFS is mandatory**, which is the next section.
 
 ## ZFS: what "mandatory" means
 

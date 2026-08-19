@@ -57,10 +57,10 @@ pkg add ./satl-freebsd.pkg
 ```
 
 "Beta" here is a statement about the edges, not the middle.
-The feature set runs real workloads — the [Node.js + MariaDB tutorial](start/app-node-mariadb.md) on this site goes end to end on a three-node cluster — and everything documented here has been *run*, on FreeBSD 15.1 amd64.
+The feature set runs real workloads — the [Node.js + MariaDB tutorial](start/app-node-mariadb.md) on this site goes end to end on a three-node cluster — and everything documented here has been *run*, on FreeBSD 15.1-RELEASE and on 15-CURRENT, amd64.
 Nothing on this site is documented from intent.
 
-What that leaves, plainly: no independent security audit, no compatibility promise between pre-1.0 versions and no upgrade path across them, FreeBSD 15.1 on amd64 only, and IPv4 only.
+What that leaves, plainly: no independent security audit, no compatibility promise between pre-1.0 versions and no upgrade path across them, FreeBSD on amd64 only, and IPv4 only.
 Cluster state has a [measured backup and restore procedure](cluster/backup-restore.md), but no `satl` verb performs it, and a cluster that permanently loses quorum cannot be repaired from inside.
 What is missing is listed, by name, on the [status page](about/status.md).
 

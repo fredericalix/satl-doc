@@ -6,8 +6,8 @@ This page says what works, what does not, and what is missing entirely — in te
 "Beta" is meant precisely here: the feature set below is complete enough to run real workloads, it has had **no independent security audit**, and no compatibility promise is made between pre-1.0 versions.
 Read the two lists and decide for yourself — that is what they are for.
 
-Everything in the first list has been exercised on FreeBSD 15.1 amd64: on a
-single host, and — for anything involving more than one node — on a three-node
+Everything in the first list has been exercised on FreeBSD 15.1-RELEASE and on
+15-CURRENT, amd64: on a single host, and — for anything involving more than one node — on a three-node
 cluster.
 
 ## What is built
