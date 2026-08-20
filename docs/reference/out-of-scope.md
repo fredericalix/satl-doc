@@ -174,7 +174,7 @@ Published ports still work over whatever the host's own addressing is; it is the
 ## FreeBSD on amd64 only { #platform }
 
 - **The host must be FreeBSD on amd64.**
-  15.1-RELEASE and 15-CURRENT are what SatL is built and run on; nothing else is tested, and no other architecture is built at all.
+  15.1-RELEASE and CURRENT are what SatL is built and run on; nothing else is tested, and no other architecture is built at all.
   The daemon leans on FreeBSD-specific interfaces throughout — jails, VNET, `rctl(8)`, `pf(4)`, `if_vxlan`, `devfs` rulesets, and ZFS.
 - **ZFS is mandatory, not a driver among others.**
   `satld` refuses to start without its root dataset.

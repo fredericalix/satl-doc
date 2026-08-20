@@ -7,7 +7,7 @@ This page says what works, what does not, and what is missing entirely — in te
 Read the two lists and decide for yourself — that is what they are for.
 
 Everything in the first list has been exercised on FreeBSD 15.1-RELEASE and on
-15-CURRENT, amd64: on a single host, and — for anything involving more than one node — on a three-node
+CURRENT, amd64: on a single host, and — for anything involving more than one node — on a three-node
 cluster.
 
 ## What is built

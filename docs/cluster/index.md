@@ -284,5 +284,5 @@ The on-disk side of this is in [Node state on disk](../config/state.md#autolock)
 | look up a flag | [`satl swarm`](../reference/cli/swarm.md#satl-swarm), [`satl node`](../reference/cli/node.md#satl-node), [`satl ca`](../reference/cli/ca.md#satl-ca) |
 | open the firewall | [Ports and firewall](../reference/ports.md) |
 
-Everything on this page was exercised on a three-node cluster of FreeBSD VMs — 4 vCPU, 8 GiB, ZFS — on 15.1-RELEASE and on 15-CURRENT.
+Everything on this page was exercised on a three-node cluster of FreeBSD VMs — 4 vCPU, 8 GiB, ZFS — on 15.1-RELEASE and on CURRENT.
 Where a number is quoted it was measured there, and where a recovery is described it was performed there.

@@ -7,7 +7,7 @@ Two entries below need a reboot or a package the machine may not have, and one o
 
 | What | Why | If it is absent |
 | --- | --- | --- |
-| **FreeBSD 15 on amd64** | SatL is built and run on 15.1-RELEASE and on 15-CURRENT. It uses jail, VNET, ZFS, pf, rctl and `if_vxlan` directly, through `sysctl`, `ifconfig`, `pfctl`, `zfs` and `ocijail`. | Untested. Nothing is deliberately tied to one release, and nothing older has been run — see [Which FreeBSD](#which-freebsd). |
+| **FreeBSD 15 on amd64** | SatL is built and run on 15.1-RELEASE and on CURRENT. It uses jail, VNET, ZFS, pf, rctl and `if_vxlan` directly, through `sysctl`, `ifconfig`, `pfctl`, `zfs` and `ocijail`. | Untested. Nothing is deliberately tied to one release, and nothing older has been run — see [Which FreeBSD](#which-freebsd). |
 | **A ZFS pool, and a root dataset for SatL** | ZFS is not one storage driver among several: a layer *is* a dataset, applying a layer is snapshot + clone, and a container's writable layer is a clone. | `satld` **refuses to start**, with the command to fix it in the error. See below. |
 | **root** | `satld` creates jails, ZFS datasets and network interfaces, and loads pf anchors. | The daemon cannot install its devfs ruleset, and every jail creation fails at `/dev`. |
 | **`ocijail`** — `pkg install ocijail` | SatL implements no runtime. It generates an OCI spec and drives the `ocijail` binary. | Every task fails at the create step. Nothing fails at startup, which makes it a confusing way to find out. |
@@ -20,7 +20,7 @@ Two entries below need a reboot or a package the machine may not have, and one o
 
 ## Which FreeBSD { #which-freebsd }
 
-**15.1-RELEASE and 15-CURRENT, on amd64.**
+**15.1-RELEASE and CURRENT, on amd64.**
 Both have been run: the single-host material on this site and the three-node cluster material were exercised on each.
 
 There is no version check anywhere in SatL — nothing reads `kern.osrelease` and compares it, and nothing is conditionally compiled — so "15.1" throughout this site is a statement about where a thing was *measured*, never about what the daemon will accept.
