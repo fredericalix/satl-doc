@@ -14,6 +14,23 @@ A `satl run` or `satl service create` pulls on its own when the image is missing
 ## References
 
 References are normalised the way the Docker CLI normalises them: `nginx` becomes `docker.io/library/nginx:latest`, `alpine:3` becomes `docker.io/library/alpine:3`, and anything with a host component is left alone.
+A first component counts as a host only if it contains a `.` or a `:`, or is exactly `localhost` — Docker's own heuristic, which is why `127.0.0.1:5000/satl-test/x` is a registry and `freebsd-runtime:15.1` is not.
+
+!!! warning "A bare name is a Docker Hub *library* name, and fails as an auth error"
+
+    `freebsd-runtime:15.1` is not "the local FreeBSD base image": it normalises to `docker.io/library/freebsd-runtime`, a repository that does not exist — the FreeBSD project publishes under `freebsd/`, not `library/`.
+    Docker Hub answers a missing repository with `401`, so what comes back is not "no such image" but this:
+
+    ```
+    Error response from daemon: registry docker.io: authentication failed for
+    library/freebsd-runtime: credentials rejected after auth challenge
+    (WWW-Authenticate: Some("Bearer realm=\"https://auth.docker.io/token\",
+    service=\"registry.docker.io\",scope=\"repository:library/freebsd-runtime:pull\",
+    error=\"insufficient_scope\""))
+    ```
+
+    Write the registry out: `127.0.0.1:5000/satl-test/freebsd-runtime:15.1` for [a local registry](../start/registry.md), or `docker.io/freebsd/freebsd-runtime:15.1` for the upstream one.
+
 An image is identified by its manifest digest, so `satl images` shows that digest as the `IMAGE ID` — there is no separate content id, and no parent chain:
 
 ```console
@@ -58,13 +75,16 @@ There is one exception and no override:
 
 !!! warning "Plain HTTP works for loopback registries only"
 
-    `localhost`, `127.0.0.1` and `[::1]` — on any port — are reachable over plain HTTP, because that is what a local test registry needs.
+    `localhost`, `127.0.0.1` and `[::1]` — on any port — are reachable over plain HTTP, because that is what [a local registry](../start/registry.md) needs.
     **Every other host is HTTPS, and there is no insecure-registry setting.**
-    An explicit HTTP reference to anything else is refused:
+
+    Nothing warns you at the reference: the scheme is chosen from the host name and the request simply goes out as TLS.
+    A registry serving plain HTTP anywhere else therefore fails as a transport error, and the URL in it is the diagnosis:
 
     ```
-    refusing plain-HTTP registry "registry.internal:5000": only localhost/127.0.0.1
-    may be contacted without TLS
+    Error response from daemon: registry 10.88.0.1:5999: GET manifest 15.1 for
+    satl-test/freebsd-runtime: error sending request for url
+    (https://10.88.0.1:5999/v2/satl-test/freebsd-runtime/manifests/15.1)
     ```
 
     There is no `satld.toml` key and no daemon flag that changes this.
@@ -133,7 +153,7 @@ All `PKG` steps run before the first `COPY`/`RUN` (a package must be installed b
 Several `FROM` lines define several **stages**, named with `AS` (or addressed by index); every stage builds fully, and only the last one is repacked into the image — so the toolchain stays behind in the builder stage:
 
 ```text
-FROM freebsd-runtime:15.1 AS builder
+FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1 AS builder
 PKG llvm
 COPY src/ /src/
 RUN make -C /src
@@ -163,20 +183,16 @@ And builds are **incremental**: every step is cached content-addressed in `/var/
 A changed file re-runs only the steps after it.
 `--no-cache` forces a clean run, `--cache-dir` relocates the cache.
 
-!!! warning "The image lands in this node's store only — unless you push it"
+--8<-- "image-is-node-local.md"
 
-    There is no cluster-wide image distribution.
-    A service scheduled on three nodes needs the image on all three: build on each, or **push the result to a registry and let the nodes pull**:
+```sh
+sudo satl build --push -t registry.example.com/apps/web:1.2
+sudo satl push 127.0.0.1:5000/satl-test/freebsd-nginx:latest   # an existing image
+```
 
-    ```sh
-    sudo satl build --push -t registry.example.com/apps/web:1.2
-    sudo satl push 127.0.0.1:5000/satl-test/freebsd-nginx:latest   # an existing image
-    ```
-
-    The push is client-side, like the build (there is no
-    `POST /images/{name}/push` on the daemon), uploads only the blobs the
-    registry lacks, and takes credentials as `--username` +
-    `--password-stdin` — nothing is stored anywhere.
+The push is client-side, like the build (there is no `POST /images/{name}/push`
+on the daemon), uploads only the blobs the registry lacks, and takes credentials
+as `--username` + `--password-stdin` — nothing is stored anywhere.
 
 Two jail facts a stateful image build runs into, both covered in
 [the platform notes](../reference/out-of-scope.md#platform):
@@ -190,6 +206,22 @@ Two jail facts a stateful image build runs into, both covered in
 
 That label mechanism is general: `satl.jail.<param>=<value>` passes any jail
 parameter ocijail understands through as an OCI annotation.
+
+## Why a missing image on one node is quiet, not loud { #image-locality }
+
+The scheduler places replicas without knowing which nodes hold the image: the filter pipeline covers availability, resource reservations, constraints, platform, host ports and the per-node replica cap, and image locality is not one of them.
+The agent then resolves the image **local store first**, so the node you built on runs immediately and the others go out to the registry named in the reference.
+What happens next depends on what answers them, and the two cases are nothing alike:
+
+| What the other nodes find at that reference | What you see |
+| --- | --- |
+| a registry that answers `404` | the task fails, terminally, with a message that names the cause: `no such manifest … the image may exist only in another node's local store` |
+| **nothing listening at all** | the task retries the pull **every second, forever**, and stays in `PREPARING` |
+
+The second case is the one that costs an afternoon, and `127.0.0.1:5000` on a node with no registry is exactly it.
+A connection error is a *transient* failure by classification — the right call for a registry that is briefly down, and indistinguishable from one that was never there — so the task never fails, the restart supervisor never fires, `satl service ls` reports `0/3` or `1/3` indefinitely, and the helpful message above is never printed.
+
+`satl service ps <service>` shows the tasks stuck in `PREPARING`; the node's log has the pull error, once per attempt.
 
 ## Where the bytes go
 

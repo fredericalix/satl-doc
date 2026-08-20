@@ -256,3 +256,5 @@ docker -H unix:///var/run/satl.sock version
 ```
 
 Next: [Your first container](first-container.md).
+
+Its middle step builds a FreeBSD image, which needs a base image to build `FROM` — [A local registry](registry.md) is the page that puts one on this node, and it is the missing piece behind every `127.0.0.1:5000/satl-test/...` reference on this site.

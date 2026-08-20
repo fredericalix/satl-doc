@@ -169,6 +169,7 @@ nav:
       - Requirements: start/requirements.md
       - Install: start/install.md
       - Install from source: start/install-from-source.md
+      - A local registry: start/registry.md
       - Your first container: start/first-container.md
       - What just happened: start/what-happened.md
       - A real application (Node.js + MariaDB): start/app-node-mariadb.md

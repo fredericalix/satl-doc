@@ -4,7 +4,7 @@ From a host that has just finished [Install](install.md) to a container serving 
 Every step says what it does, what breaks if you skip it, and how to check it worked.
 
 There is a detour in the middle that cannot be avoided honestly: there is no public FreeBSD image that serves HTTP, so getting a serving image means making one.
-That is [step 3](#3-get-an-image-that-serves-something).
+That is [step 3](#3-get-an-image-that-serves-something), and building one means having a base image to build `FROM` — [A local registry](registry.md) is that page, and it is worth doing before you start.
 
 ## 1. Run something that exits
 
@@ -70,6 +70,10 @@ Anything that listens on a port works under the linuxulator, as long as it does 
 This is the shortest path and the one to take if you just want to see the machinery move.
 
 **b. Build a FreeBSD nginx image with `satl build`.**
+This is the path the rest of the site takes, and it has one prerequisite: the base image in the `FROM` line has to exist somewhere this node can pull it from.
+[A local registry](registry.md) is that somewhere — a `pkg install`, one config file and one `skopeo copy`, after which `127.0.0.1:5000/satl-test/freebsd-runtime:15.1` is a real reference on this machine.
+Do that page first.
+
 A `Satlfile` is the pkg-shaped subset of a Dockerfile — `COPY` and `RUN` included, with the Satlfile's own directory as the build context:
 
 ```text
@@ -83,11 +87,13 @@ ENTRYPOINT ["/usr/local/sbin/nginx", "-g", "daemon off;"]
 sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-nginx:latest
 ```
 
-It needs root (packages are installed into the rootfs with `pkg --rootdir`, and the linker hints are baked with a `chroot`ed `ldconfig`), and network access on the first run — the build pulls the `FROM` image itself (the reference above assumes a loopback registry seeded with `freebsd/freebsd-runtime:15.1`) and fetches packages from the FreeBSD package mirror.
-The result registers into the node's image store directly; the details are in [Images](../use/images.md#satl-build).
+It needs root (packages are installed into the rootfs with `pkg --rootdir`, and the linker hints are baked with a `chroot`ed `ldconfig`), and network access on the first run — the build pulls the `FROM` image from the local registry and fetches packages from the FreeBSD package mirror.
+The result registers into **this node's** image store directly, under the tag you gave `-t`; it is not pushed anywhere and no other node gains it.
+The details are in [Images](../use/images.md#satl-build).
 
 **c. Build one somewhere else** and push it to a registry SatL can reach.
-A registry over plain HTTP has to be reachable as such; SatL treats `127.0.0.1:5000` as insecure by convention because that is where its own test registry lives.
+"Can reach" is narrower than it sounds: `localhost`, `127.0.0.1` and `[::1]` are contacted over plain HTTP on any port, and **every other host over HTTPS, with no insecure-registry override**.
+A registry on your network therefore needs a certificate this node trusts — [Images](../use/images.md#registries) has the rule and what it looks like when you cross it.
 
 The rest of this page uses `127.0.0.1:5000/satl-test/freebsd-nginx:latest`.
 Substitute whatever you ended up with.

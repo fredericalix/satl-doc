@@ -326,8 +326,9 @@ What you cannot do is leave it unhealthy and running.
 **Symptom** — one of
 
 ```
-refusing plain-HTTP registry "registry.example.com": only localhost/127.0.0.1
-may be contacted without TLS
+Error response from daemon: registry 127.0.0.1:5000: GET manifest 15.1 for
+satl-test/freebsd-runtime: error sending request for url
+(http://127.0.0.1:5000/v2/satl-test/freebsd-runtime/manifests/15.1)
 ```
 
 ```
@@ -343,12 +344,24 @@ registry registry.example.com: authentication failed for app: … (WWW-Authentic
 
 ```sh
 satl pull <reference>
+curl -sf http://127.0.0.1:5000/v2/                 # for a loopback registry: expect {}
 sudo grep -a -E 'registry|manifest|platform' /var/log/messages | tail -20
 ```
 
 **Reading.**
-The three shapes are unrelated: a registry reachable only over plain HTTP is refused unless it is loopback; a platform list that contains nothing this node can run is an image problem, and the message prints exactly what the registry offered; an auth failure quotes the challenge it got.
+The three shapes are unrelated.
+
+`error sending request for url (…)` is a transport failure — nothing answered, or answered something that is not HTTP(S).
+Read the URL it prints: `http://127.0.0.1:5000/…` means no registry is running on this node ([A local registry](../start/registry.md) is how one gets there), and an `https://` URL where you configured a plain-HTTP registry means SatL did what it always does off loopback — `localhost`, `127.0.0.1` and `[::1]` are the only hosts contacted without TLS, on any port, and there is no insecure-registry override to turn that off.
+
+A platform list that contains nothing this node can run is an image problem, and the message prints exactly what the registry offered.
+An auth failure quotes the challenge it got — including for a repository that does not exist, which Docker Hub answers with `401` rather than `404`, so `authentication failed for library/<something>` usually means a bare image name normalised into `docker.io/library/` where nothing lives.
 
 **Fix.**
-Give the registry TLS (or run it on `127.0.0.1`), push an image built for `freebsd/amd64` or `linux/amd64`, or fix the credentials.
+Start the registry (or give an off-loopback one TLS), push an image built for `freebsd/amd64` or `linux/amd64`, or fix the credentials.
 Platform selection prefers `freebsd/amd64|arm64` from a manifest list and falls back to `linux/amd64`; `satl ps` and `satl images` show the resolved platform in their `PLATFORM` column.
+
+!!! danger "On a cluster this can look like nothing at all"
+
+    A task whose pull fails on a *transport* error is retried every second, indefinitely, and sits in `PREPARING` — no failure, no restart, just a service that reports fewer replicas than it wants.
+    [Why a missing image on one node is quiet](../use/images.md#image-locality) is the whole mechanism.

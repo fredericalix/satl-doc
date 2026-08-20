@@ -8,10 +8,11 @@ On the way it uses `satl build`, secrets, constraints, placement preferences, he
 
 ## What you need
 
-A SatL cluster (the [install](../start/install.md) and a `swarm join` per
-node), and a registry or a base image on each node — this page uses
-`127.0.0.1:5000/satl-test/freebsd-runtime:15.1` as the base, exactly as [Your
-first container](../start/first-container.md) does.
+A SatL cluster: the [install](../start/install.md) and a `swarm join` per node.
+
+And **[a local registry on every node](../start/registry.md)**, each seeded with the base image this page builds `FROM` — `127.0.0.1:5000/satl-test/freebsd-runtime:15.1`, exactly as [Your first container](../start/first-container.md) uses it.
+On every node is not a formality: `127.0.0.1:5000` resolves to a different registry on each machine, and a node whose registry is missing the base image cannot build, while a node missing the *built* image cannot run a replica.
+That is the shape of the whole page — every `satl build` below happens once per node.
 
 ## 1. The application
 
@@ -99,11 +100,10 @@ $ sudo satl build -t 127.0.0.1:5000/satl-test/tuto-web:latest
 Built and registered 127.0.0.1:5000/satl-test/tuto-web:latest (manifest sha256:19eb1d9d…)
 ```
 
-!!! warning "The image lands in this node's store only"
+--8<-- "image-is-node-local.md"
 
-    A three-replica service needs the image on every node it may run on.
-    Build on each (copy the directory, run the same command), or push the result to a registry the nodes can pull from — `satl build --push -t registry.example.com/apps/tuto-web:1` does it in one command since M8a.
-    This page builds per node because the test cluster's registry is loopback-only.
+This page takes the first road: the same `satl build`, run on each of the three nodes, because the test cluster's only registry is the loopback one and a loopback registry moves nothing between machines.
+Copy the directory (`app/`, `Satlfile`) to each node and run the identical command there.
 
 ## 3. The database image
 
@@ -266,7 +266,9 @@ The `client:` field on the page shows the mesh's relay address, not yours — th
 
 ## 6. A rolling update, without losing a request
 
-Change the page, rebuild under a new tag on each node, update:
+Change the page, rebuild under a new tag **on each of the three nodes**, and only then update the service.
+A rolling update replaces tasks node by node, so a node that never got `:v2` cannot start its replacement — its own loopback registry answers `404` for a tag nothing pushed there, the task fails terminally, and the update stalls on that node.
+(A node with *no* registry at all fails differently and much more quietly — [why](../use/images.md#image-locality).)
 
 ```console
 $ sudo satl build -t 127.0.0.1:5000/satl-test/tuto-web:v2    # on each node
