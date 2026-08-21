@@ -127,7 +127,7 @@ The service name has an underscore (`docker_registry`); the rc.d script calls th
     The registry therefore **holds the stdout and stderr it was started with** for as long as it runs.
 
     Start it over `ssh` without redirecting them and the ssh command never returns.
-    Measured on FreeBSD 15.1, three runs: bare, the session sat there until it was killed; with `</dev/null` alone, same; with `>/dev/null 2>&1`, it returned in a second.
+    Measured on FreeBSD 15.1, three runs: bare, the session sat there until it was killed; with <code>&lt;/dev/null</code> alone, same; with `>/dev/null 2>&1`, it returned in a second.
     The registry started and kept running in all three — it is the ssh session that hangs, which is why this reads as a network problem on the first node of a provisioning run and not as a registry problem at all.
 
     The registry's own output is not lost: `daemon -o` is already sending it to `/var/log/docker-registry.log` (`docker_registry_logfile`), which is where you want to read it.

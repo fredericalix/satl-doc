@@ -3,8 +3,13 @@ SatL documentation -- Creative Commons Attribution 4.0 International
 This licence covers the CONTENT OF THIS REPOSITORY: the documentation text,
 the generator and check scripts under tools/, and the site configuration.
 
-It does NOT cover SatL itself. SatL ships no LICENSE file, so its licensing is
-undetermined; nothing here grants any licence to that software.
+One file is an exception, deliberately: docs/install-satl.sh is BSD-2-Clause
+and carries its own SPDX header. It is software people run and modify rather
+than documentation they read, and a Creative Commons licence is the wrong
+instrument for that.
+
+It does NOT cover SatL itself, which is BSD-2-Clause under its own LICENSE
+file; nothing here grants any licence to that software.
 
 Attribute as: "SatL documentation", with a link to the site.
 

@@ -12,7 +12,8 @@ Two entries below need a reboot or a package the machine may not have, and one o
 | **root** | `satld` creates jails, ZFS datasets and network interfaces, and loads pf anchors. | The daemon cannot install its devfs ruleset, and every jail creation fails at `/dev`. |
 | **`ocijail`** — `pkg install ocijail` | SatL implements no runtime. It generates an OCI spec and drives the `ocijail` binary. | Every task fails at the create step. Nothing fails at startup, which makes it a confusing way to find out. |
 | **A Rust toolchain** — `pkg install rust` | **Only if you build from source.** The [package](install.md#5-install-satl) needs no toolchain at all. | Nothing, unless you are building — then see the version note below. |
-| **pf, loaded and enabled** | pf *is* SatL's data path: NAT for container egress, `rdr` for published ports. | Containers get no outbound connectivity and no published port is redirected. |
+| **`pf.ko` loaded** | `satld` syntax-checks the anchor it is about to write when it brings up its bridge, and it does that in *every* `pf_mode` -- including the default. On FreeBSD 15 `pfctl` needs the module even to parse. | `satld` **refuses to start**. See [below](#pf-loaded-and-enabled). |
+| **pf enabled** -- `pf_enable=YES` | pf *is* SatL's data path: NAT for container egress, `rdr` for published ports. | The daemon runs and writes its anchors; nothing evaluates them. Containers get no outbound connectivity and no published port is redirected. |
 | **Three anchor lines in `/etc/pf.conf`** | SatL only ever writes inside `satl/*`, and an anchor that is not declared is never evaluated. | The daemon loads its rules into anchors nothing consults. Everything looks fine and nothing works. |
 | **`kern.racct.enable=1` in `/boot/loader.conf`, then a reboot** | Resource accounting is a boot-time tunable; `rctl(8)` rules cannot be installed without it. | `--memory` and `--cpus` are **accepted and silently not enforced**. `satld` warns at startup; nothing else complains, ever. |
 | **IP forwarding** — `gateway_enable=YES` | Container traffic is *routed* between the bridge and the egress interface. | Containers have **no outbound connectivity**, while inbound published ports still answer — which is the most misleading failure mode in the whole system. |
@@ -90,6 +91,30 @@ rustc 1.96.1 (31fca3adb 2026-06-26) (built from a source tarball)
     Check `rustc --version` **before** the install steps, not during them.
 
     `rustup` is the escape hatch if your repository is behind.
+
+## pf: what "loaded" and "enabled" each buy you { #pf-loaded-and-enabled }
+
+The module is the part that surprises people, because it is required by a code path that sounds like it would not need it.
+`satld` brings up its node-local bridge at startup and syntax-checks the `satl/nat` anchor it is about to write -- in **every** `pf_mode`, including the default `check`, whose whole purpose is to never load a rule.
+On FreeBSD 15 `pfctl` talks netlink to the kernel module even to *parse* a ruleset, so with no `pf.ko` there is nothing to parse against, and the daemon exits before it opens its socket:
+
+```
+Error: failed to build the node runtime
+
+Caused by:
+    0: failed to bring up the node-local bridge network
+    1: pfctl (syntax-check ruleset (dry run)): pf unavailable on this host: `/sbin/pfctl -nf -` failed with exit code 1; stderr: "pfctl: Failed to open netlink: No such file or directory"
+```
+
+Measured on 15.1-RELEASE-p2 with `pf_mode = "check"`: `kldunload pf`, then `service satld start`, and `satld is not running`.
+`pf_enable=YES` in `rc.conf` loads the module at boot, which is why this is rarely seen on a machine that has rebooted since pf was configured -- and always seen on one that has not.
+
+The third mode is the way out on a host that genuinely has no pf: `pf_mode = "disabled"` never invokes `pfctl` at all.
+Measured the same way -- module unloaded, `pf_mode = "disabled"` -- `satld` starts, serves its socket and reports `Ready`/`Leader`.
+You lose published ports and outbound NAT, which is the trade you are making by not having pf.
+
+Enabling pf is a separate requirement with a quieter failure.
+With the module loaded but pf itself disabled, `satld` starts normally, writes its anchors, and nothing ever evaluates them.
 
 ## The reboot, and deferring it
 

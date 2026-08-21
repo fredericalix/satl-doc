@@ -6,6 +6,34 @@ The order below is the order things depend on each other in; the daemon will sta
 Everything here assumes you have been through
 [Requirements](requirements.md).
 
+## The short way
+
+[`install-satl.sh`](../install-satl.sh) does steps 1 to 8 of this page in one command, on one node.
+
+```sh
+fetch https://docs.satl.cc/install-satl.sh
+sh install-satl.sh --pkg ./satl-0.1.0.pkg          # as root
+```
+
+Two steps rather than a pipe into `sh`, for the same reason step 5 downloads the package before installing it: you get to read what you are about to run.
+`--help` lists the flags.
+The ones worth knowing are `--zpool` (skip the pool prompt), `--with-registry` ([a local registry](registry.md) on this node), `--with-linux` (the linuxulator) and `--smoke-test` (pull and run a container at the end).
+
+Every step is idempotent and prints `[ ok ]`, `[skip]` or `[warn]`, so a second run reads as a diff against the host rather than as an install.
+`--verify-only` runs the closing checklist and changes nothing at all.
+
+It does nothing cluster-shaped: no join, no `advertise_addr`, no `listen_addr`.
+Those are decisions about addresses a script cannot make for you, and one node needs none of them -- [step 9](#9-verify) is where that stops being surprising.
+
+!!! note "`/etc/pf.conf` is the only file it edits that was already there"
+
+    It is copied to `/etc/pf.conf.satl-<timestamp>`, the three anchors are inserted ahead of the rules they have to precede, and the result goes through `pfctl -nf` **before** it is installed.
+    A ruleset that does not parse is refused and your file is left untouched.
+    And if pf is currently disabled while the ruleset is yours, the script asks before enabling it, defaulting to No: loading your own policy could drop the ssh session you are running in.
+
+The rest of this page is what the script does, and why.
+Read it when something goes wrong, or when you would rather do it by hand.
+
 ## 1. Storage
 
 ```sh
@@ -248,6 +276,8 @@ ID                            HOSTNAME             STATUS   AVAILABILITY   MANAG
 
 `satl node ls` answering at all is the interesting part: you never ran `swarm init`.
 A fresh `satld` initialises a one-member cluster on first boot, so the node is `Ready`, `Active` and `Leader` from the first start.
+
+`install-satl.sh` ends on these two checks and the host ones from steps 1 to 4, as a PASS/FAIL table; `--verify-only` prints it on its own.
 
 If you have the Docker CLI, it works too:
 
