@@ -34,6 +34,11 @@ CLI_OUT?=	${.CURDIR}/docs/reference/cli
 CONFIG_PAGE?=	${.CURDIR}/docs/reference/satld-toml.md
 SAMPLE?=	${.CURDIR}/docs/reference/satld.toml.sample
 
+# The sentence-length cap check-prose enforces. It is a ratchet: lower it once
+# the tree is clean at the current value, never raise it to make a page pass.
+# ASD-STE100, where the rule comes from, says 25 for descriptive text.
+PROSE_MAX_WORDS?=	45
+
 # `make gen ALLOW_STALE=1` generates from a binary that failed the drift check,
 # stamping a loud banner on every page. It exists for the case where you need
 # the site to build at all; it is never how a published reference is made.
@@ -60,7 +65,7 @@ DIRTY_OK=	false
 .endif
 
 .PHONY: help install-deps gen gen-fresh serve build check-gen check-drift \
-	check-config check-nav check check-clean-tree deploy clean
+	check-config check-nav check-prose check check-clean-tree deploy clean
 
 help:
 	@echo 'SatL documentation site.'
@@ -77,6 +82,7 @@ help:
 	@echo '  make check-drift    fail if the satl binary does not match its source'
 	@echo '  make check-config   fail if satld.toml.md and struct ConfigFile differ'
 	@echo '  make check-nav      fail if mkdocs.yml nav and docs/ disagree'
+	@echo '  make check-prose    fail on a sentence or paragraph over the caps'
 	@echo '  make deploy         build, check, then publish site/ to ${DEPLOY_HOST}'
 	@echo '  make clean          remove site/ and generator caches'
 	@echo ''
@@ -207,7 +213,14 @@ check-nav:
 	@${PYTHON} tools/check_nav.py --config ${.CURDIR}/mkdocs.yml \
 	    --docs ${.CURDIR}/docs --require reference/cli
 
-check: build check-nav check-config check-drift check-gen
+# No SATL_SRC and no binaries, so this one runs everywhere `serve` does. There
+# is no skip branch and there should never be one: prose is the part of this
+# repository that a non-FreeBSD machine can fully verify.
+check-prose:
+	@${PYTHON} tools/check_prose.py --docs ${.CURDIR}/docs \
+	    --max-words ${PROSE_MAX_WORDS}
+
+check: build check-nav check-prose check-config check-drift check-gen
 	@echo ''
 	@echo 'make check: all checks passed.'
 

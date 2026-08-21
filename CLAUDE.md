@@ -150,6 +150,22 @@ tree this repo does not own and only need variant/field names.
   (Python-Markdown folds single newlines into spaces), and diffs then point at
   the sentence that changed instead of at a reflowed paragraph. New prose should
   match; the generated pages under `reference/cli/` are exempt.
+- **A sentence stays under `PROSE_MAX_WORDS` words and a paragraph under six
+  sentences**, both enforced by `bmake check-prose`. The tokenizer is the rule
+  above: a line is a sentence, which is what makes the check cost nothing. The
+  cap in the Makefile is a ratchet, currently 45 on the way to ASD-STE100's 25:
+  lower it once the tree is clean, never raise it to let one page through, and
+  split the sentence rather than dropping a clause the reader needed.
+- Four rules on this site come from **ASD-STE100 Simplified Technical English**:
+  the two caps above, one instruction per step with the imperative verb first
+  (`start/`, and the **Check** / **Fix** blocks in `trouble/`), and one term per
+  concept (`docs/reference/glossary.md` is that list). Nothing else from STE is
+  adopted and the site claims no conformance anywhere. Its ~900-word dictionary
+  would collapse `accepted-and-ignored`, `refused` and `silently dropped` into
+  one approved verb, and those distinctions are why most of these pages exist;
+  the dictionary is also ASD's property, so a checker here could only ever
+  approximate it, and an approximation flying the standard's name is exactly the
+  claim-without-evidence this site refuses everywhere else.
 - The documentation is CC BY 4.0 (`LICENSE`); SatL itself is BSD-2-Clause. Keep
   the two distinct; never write anything that lets a reader infer one licence
   from the other.
