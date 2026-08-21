@@ -1,13 +1,13 @@
 # Status
 
 SatL is at **0.1.0-beta**, its first public release, and still pre-1.0.
-This page says what works, what does not, and what is missing entirely — in terms of what you would try to do, not in terms of internal milestones.
+This page says what works, what does not, and what is missing entirely, in terms of what you would try to do, not in terms of internal milestones.
 
 "Beta" is meant precisely here: the feature set below is complete enough to run real workloads, it has had **no independent security audit**, and no compatibility promise is made between pre-1.0 versions.
-Read the two lists and decide for yourself — that is what they are for.
+Read the two lists and decide for yourself; that is what they are for.
 
 Everything in the first list has been exercised on FreeBSD 15.1-RELEASE and on
-CURRENT, amd64: on a single host, and — for anything involving more than one node — on a three-node
+CURRENT, amd64: on a single host, and, for anything involving more than one node, on a three-node
 cluster.
 
 ## What is built
@@ -29,9 +29,9 @@ Both roles work: managers and workers, with `satl node promote` and `demote` app
 **Overlay networking.**
 `satl network create -d overlay`, one VNI per network, unicast VXLAN with a Raft-distributed forwarding table, static ARP programmed into each jail's VNET, and an embedded per-node DNS responder giving DNS round-robin service discovery scoped to the querying task's networks.
 The overlay MTU is derived from the measured underlay rather than assumed.
-An overlay can opt into **data-plane encryption** with `--opt encrypted`: the VXLAN datagrams cross the underlay as IPsec ESP (AES-128-GCM) on a dedicated port, with keys the cluster generates and rotates itself — see [Networks](../use/networks.md#encrypted).
+An overlay can opt into **data-plane encryption** with `--opt encrypted`: the VXLAN datagrams cross the underlay as IPsec ESP (AES-128-GCM) on a dedicated port, with keys the cluster generates and rotates itself; see [Networks](../use/networks.md#encrypted).
 
-**Published ports**, allocated cluster-wide, and a **routing mesh**: every *manager* answers on the port, whether or not it runs a replica — pf redirects to a task's overlay address, on this node or another, with return-path SNAT.
+**Published ports**, allocated cluster-wide, and a **routing mesh**: every *manager* answers on the port, whether or not it runs a replica; pf redirects to a task's overlay address, on this node or another, with return-path SNAT.
 The trade is Docker's own: a relayed connection loses the client address, and a service that needs it opts into a userspace PROXY-protocol mode with a label.
 Read [Publishing ports](../use/publishing-ports.md).
 
@@ -40,7 +40,7 @@ A Prometheus `/metrics` endpoint, off by default and bound with `metrics_addr` /
 Docker's own series names where dockerd defines them, so off-the-shelf dashboards render; `satl_*` for everything SatL-specific, including per-task rctl usage.
 
 **Image builds.**
-`satl build` assembles a FreeBSD OCI image from a `Satlfile` — a `FROM` line, a package list, `COPY`/`RUN` steps, env, labels, an entrypoint — and registers it in the node's store.
+`satl build` assembles a FreeBSD OCI image from a `Satlfile` (a `FROM` line, a package list, `COPY`/`RUN` steps, env, labels, an entrypoint), and registers it in the node's store.
 The build runs client-side on the node's host; there is no daemon-side build endpoint, and the format is deliberately the pkg-shaped subset of Dockerfile.
 See [Images](../use/images.md#satl-build).
 
@@ -53,37 +53,37 @@ Restart policies with a max-attempts budget that survives a leader election; rol
 
 **Healthchecks**, with Docker's semantics, and one deliberate difference: a task with a healthcheck is not reported `RUNNING` until a probe passes, and a task that goes unhealthy is stopped and replaced rather than left running.
 That gate is what makes a zero-downtime rolling update possible at all.
-A service that publishes a port gets [tighter probe defaults](../use/healthchecks.md#publishing-a-port-tightens-the-defaults) — about 10 s to leave the traffic pool instead of about 90 — because pf never probes what it redirects to.
+A service that publishes a port gets [tighter probe defaults](../use/healthchecks.md#publishing-a-port-tightens-the-defaults), about 10 s to leave the traffic pool instead of about 90, because pf never probes what it redirects to.
 
 **Secrets and configs.**
 Encrypted at rest in the Raft store, delivered into a per-task tmpfs and never written to a worker's disk, reference-counted over the dispatcher, and refused for deletion while a service still uses them.
 
 **Certificates that look after themselves.**
 Every node's certificate is renewed automatically part-way through its validity and swapped into the live TLS configuration without a restart.
-`satl ca rotate` replaces the cluster root CA on a live cluster with no downtime — services keep serving, sessions stay up, writes keep committing throughout.
+`satl ca rotate` replaces the cluster root CA on a live cluster with no downtime; services keep serving, sessions stay up, writes keep committing throughout.
 
 **Compose files**, with stack semantics: `satl compose up` deploys one *service* per compose service on a shared overlay, scheduled across the cluster, and refuses anything outside the supported subset instead of ignoring it.
 See [Compose files](../use/compose.md).
 
 **Disk reclamation.**
 `satl system prune` removes stopped containers, unused networks, unreferenced image content and unreferenced layer datasets.
-It is manual, and node-local for everything that costs disk — see [Reclaiming space](../use/reclaiming-space.md).
+It is manual, and node-local for everything that costs disk; see [Reclaiming space](../use/reclaiming-space.md).
 
 **Backup and restore of cluster state**, with a measured procedure: a manager's raft directory is its own ZFS dataset, a snapshot of it restores onto that node in seconds, and on a cluster that still has quorum a lost manager is rejoined in about six seconds with no backup at all.
-Read [Backup and restore](../cluster/backup-restore.md) before you deploy anything you care about — in particular the part about how many managers to run.
+Read [Backup and restore](../cluster/backup-restore.md) before you deploy anything you care about, in particular the part about how many managers to run.
 
 ## What is not built
 
 | Missing | What it means for you |
 | --- | --- |
 | **Automatic or cluster-wide reclamation** | `satl system prune` exists, but nothing runs it for you and one run reclaims one node's images, layers and volumes. A node never pruned still fills its pool. |
-| **Recovery from a lost quorum** | A cluster whose majority of managers is gone for good cannot be repaired from inside — there is no `ForceNewCluster` — and the only way back is restoring a majority from their own backups. |
-| **A port or an official repository** | No FreeBSD port and no `pkg install satl` from the official repos. What exists is a package you fetch and add yourself, [`satl-freebsd.pkg`](../start/install.md#5-install-satl) — no repository needed — and `make package` if you would rather build it. |
+| **Recovery from a lost quorum** | A cluster whose majority of managers is gone for good cannot be repaired from inside (there is no `ForceNewCluster`), and the only way back is restoring a majority from their own backups. |
+| **A port or an official repository** | No FreeBSD port and no `pkg install satl` from the official repos. What exists is a package you fetch and add yourself, [`satl-freebsd.pkg`](../start/install.md#5-install-satl), no repository needed, and `make package` if you would rather build it. |
 | **An upgrade path** | There is no supported way to move a running cluster from one build to another. Nothing versions the on-disk state, and nothing has been tested across versions. |
 | **IPv6** | SatL assigns no IPv6 addresses. `EnableIPv6` and IPv6 subnets on network creation are refused with a 400 rather than accepted and ignored. |
 
 There is a longer, more precise list of things that are deliberately out of
-scope — and why — in the [reference](../reference/out-of-scope.md).
+scope, and why, in the [reference](../reference/out-of-scope.md).
 
 ## Rough edges you will meet
 
@@ -93,13 +93,13 @@ These are known, small, and none of them has a workaround worth hiding.
   The registry credential is honoured for a direct `satl pull` and **dropped** on service create, so a node that has to fetch the image itself fetches it anonymously.
   Pre-pull on every node that may run the service, or use a registry the nodes can read unauthenticated.
   See [Images](../use/images.md#authentication).
-- **Images from before M7a report `CREATED` as the epoch**, rendered "56 years ago" — their configs carry no readable timestamp.
+- **Images from before M7a report `CREATED` as the epoch**, rendered "56 years ago"; their configs carry no readable timestamp.
   New pulls and builds show real dates.
 - **A stopped container keeps its jail until it is removed.**
   Docker keeps a stopped container's filesystem but not a live namespace; SatL leaves an empty jail (zero processes) and its epair in place.
   Three containers that exited two days ago still show up in `jls`.
   Harmless, unexpected, and open.
-- **No `satl events` verb**, although `GET /events` is served — use `curl
+- **No `satl events` verb**, although `GET /events` is served; use `curl
   --unix-socket`.
 - **Exec is not interactive.**
   No TTY (`-t` is a clear error, never a half-started container), stdin on `run -i` is not attached, and `satl exec` delivers its output when the process exits rather than streaming it live.

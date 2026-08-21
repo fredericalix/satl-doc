@@ -4,11 +4,11 @@ From a host that has just finished [Install](install.md) to a container serving 
 Every step says what it does, what breaks if you skip it, and how to check it worked.
 
 There is a detour in the middle that cannot be avoided honestly: there is no public FreeBSD image that serves HTTP, so getting a serving image means making one.
-That is [step 3](#3-get-an-image-that-serves-something), and building one means having a base image to build `FROM` — [A local registry](registry.md) is that page, and it is worth doing before you start.
+That is [step 3](#3-get-an-image-that-serves-something), and building one means having a base image to build `FROM`; [A local registry](registry.md) is that page, and it is worth doing before you start.
 
 ## 1. Run something that exits
 
-Before anything serves traffic, prove the whole path works — registry pull,
+Before anything serves traffic, prove the whole path works: registry pull,
 layer application as ZFS clones, OCI spec, jail creation, output capture, exit
 code.
 
@@ -27,14 +27,14 @@ That is an unmodified `linux/amd64` image running under the linuxulator, which i
 `2blf7rzo7agy` is the jail's hostname: the first twelve characters of the task id, which is what Docker would call the short container id.
 [Linux containers](../use/linux-containers.md) is the whole story on running images built for Linux.
 
-Any OCI distribution registry works — the `(linux/amd64)` on the digest line is
+Any OCI distribution registry works; the `(linux/amd64)` on the digest line is
 platform selection choosing the only platform this image offers.
 
 **If it fails:**
 
 | Symptom | Cause |
 | --- | --- |
-| `Error response from daemon:` about a missing image | the registry is unreachable — check `net.inet.ip.forwarding` and the `satl/nat` anchor; a container that cannot reach a registry is usually a host that cannot forward |
+| `Error response from daemon:` about a missing image | the registry is unreachable; check `net.inet.ip.forwarding` and the `satl/nat` anchor; a container that cannot reach a registry is usually a host that cannot forward |
 | the task reaches `PREPARING` and fails | `ocijail` is not installed, or `satld` is not running as root |
 | an error naming `linux.ko` | `kldload linux`, and add `linux_load="YES"` to `/boot/loader.conf` |
 
@@ -54,7 +54,7 @@ CONTAINER ID   IMAGE                             COMMAND      CREATED         ST
 ```
 
 `eager_clarke` is a name SatL generated, because a bare `satl run` creates an anonymous service and something has to be called something.
-That is not a cosmetic detail — see [What just happened](what-happened.md).
+That is not a cosmetic detail; see [What just happened](what-happened.md).
 
 ## 3. Get an image that serves something { #3-get-an-image-that-serves-something }
 
@@ -71,10 +71,10 @@ This is the shortest path and the one to take if you just want to see the machin
 
 **b. Build a FreeBSD nginx image with `satl build`.**
 This is the path the rest of the site takes, and it has one prerequisite: the base image in the `FROM` line has to exist somewhere this node can pull it from.
-[A local registry](registry.md) is that somewhere — a `pkg install`, one config file and one `skopeo copy`, after which `127.0.0.1:5000/satl-test/freebsd-runtime:15.1` is a real reference on this machine.
+[A local registry](registry.md) is that somewhere: a `pkg install`, one config file and one `skopeo copy`, after which `127.0.0.1:5000/satl-test/freebsd-runtime:15.1` is a real reference on this machine.
 Do that page first.
 
-A `Satlfile` is the pkg-shaped subset of a Dockerfile — `COPY` and `RUN` included, with the Satlfile's own directory as the build context:
+A `Satlfile` is the pkg-shaped subset of a Dockerfile, `COPY` and `RUN` included, with the Satlfile's own directory as the build context:
 
 ```text
 FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
@@ -87,13 +87,13 @@ ENTRYPOINT ["/usr/local/sbin/nginx", "-g", "daemon off;"]
 sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-nginx:latest
 ```
 
-It needs root (packages are installed into the rootfs with `pkg --rootdir`, and the linker hints are baked with a `chroot`ed `ldconfig`), and network access on the first run — the build pulls the `FROM` image from the local registry and fetches packages from the FreeBSD package mirror.
+It needs root (packages are installed into the rootfs with `pkg --rootdir`, and the linker hints are baked with a `chroot`ed `ldconfig`), and network access on the first run; the build pulls the `FROM` image from the local registry and fetches packages from the FreeBSD package mirror.
 The result registers into **this node's** image store directly, under the tag you gave `-t`; it is not pushed anywhere and no other node gains it.
 The details are in [Images](../use/images.md#satl-build).
 
 **c. Build one somewhere else** and push it to a registry SatL can reach.
 "Can reach" is narrower than it sounds: `localhost`, `127.0.0.1` and `[::1]` are contacted over plain HTTP on any port, and **every other host over HTTPS, with no insecure-registry override**.
-A registry on your network therefore needs a certificate this node trusts — [Images](../use/images.md#registries) has the rule and what it looks like when you cross it.
+A registry on your network therefore needs a certificate this node trusts; [Images](../use/images.md#registries) has the rule and what it looks like when you cross it.
 
 The rest of this page uses `127.0.0.1:5000/satl-test/freebsd-nginx:latest`.
 Substitute whatever you ended up with.
@@ -129,7 +129,7 @@ CONTAINER ID   IMAGE                                           COMMAND   CREATED
 2qw3gxb4uklp   127.0.0.1:5000/satl-test/freebsd-nginx:latest   ""        2 minutes ago   Up 2 minutes   0.0.0.0:8080->80/tcp   freebsd/amd64   web
 ```
 
-**The redirect really exists** — this is the check that separates "SatL thinks
+**The redirect really exists**: this is the check that separates "SatL thinks
 it published a port" from "packets are being translated":
 
 ```console
@@ -200,7 +200,7 @@ above names it as the redirect target.
 satl run -d --memory 512m --cpus 1.5 --name limited <image>
 ```
 
-If you rebooted with `kern.racct.enable=1`, `rctl` rules are installed with the container and removed with it — read them back with `rctl -h jail:<container id>`.
+If you rebooted with `kern.racct.enable=1`, `rctl` rules are installed with the container and removed with it; read them back with `rctl -h jail:<container id>`.
 If you did **not**, the flags are accepted and nothing is enforced: no error, no rejected request, only the warning in the startup log and a note in the task's status message.
 
 Note that a SatL memory limit is a **kill**, not a throttle
@@ -219,8 +219,8 @@ satl rm -f web
 
     You can watch this: `satl service ls` before and after.
 
-The container's ZFS dataset may survive the removal by up to a minute and a half, and that is expected — a jail whose container had an open TCP connection stays `DYING` for two maximum segment lifetimes (60 s by default) and keeps its rootfs mounted.
+The container's ZFS dataset may survive the removal by up to a minute and a half, and that is expected; a jail whose container had an open TCP connection stays `DYING` for two maximum segment lifetimes (60 s by default) and keeps its rootfs mounted.
 `satld` waits, then hands the dataset to a sweep that runs every 20 seconds.
 Nothing is leaked and nothing needs doing.
 
-Next: [What just happened](what-happened.md) — the debrief.
+Next: [What just happened](what-happened.md), the debrief.

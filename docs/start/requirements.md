@@ -7,24 +7,24 @@ Two entries below need a reboot or a package the machine may not have, and one o
 
 | What | Why | If it is absent |
 | --- | --- | --- |
-| **FreeBSD 15 on amd64** | SatL is built and run on 15.1-RELEASE and on CURRENT. It uses jail, VNET, ZFS, pf, rctl and `if_vxlan` directly, through `sysctl`, `ifconfig`, `pfctl`, `zfs` and `ocijail`. | Untested. Nothing is deliberately tied to one release, and nothing older has been run — see [Which FreeBSD](#which-freebsd). |
+| **FreeBSD 15 on amd64** | SatL is built and run on 15.1-RELEASE and on CURRENT. It uses jail, VNET, ZFS, pf, rctl and `if_vxlan` directly, through `sysctl`, `ifconfig`, `pfctl`, `zfs` and `ocijail`. | Untested. Nothing is deliberately tied to one release, and nothing older has been run; see [Which FreeBSD](#which-freebsd). |
 | **A ZFS pool, and a root dataset for SatL** | ZFS is not one storage driver among several: a layer *is* a dataset, applying a layer is snapshot + clone, and a container's writable layer is a clone. | `satld` **refuses to start**, with the command to fix it in the error. See below. |
 | **root** | `satld` creates jails, ZFS datasets and network interfaces, and loads pf anchors. | The daemon cannot install its devfs ruleset, and every jail creation fails at `/dev`. |
-| **`ocijail`** — `pkg install ocijail` | SatL implements no runtime. It generates an OCI spec and drives the `ocijail` binary. | Every task fails at the create step. Nothing fails at startup, which makes it a confusing way to find out. |
-| **A Rust toolchain** — `pkg install rust` | **Only if you build from source.** The [package](install.md#5-install-satl) needs no toolchain at all. | Nothing, unless you are building — then see the version note below. |
+| **`ocijail`**: `pkg install ocijail` | SatL implements no runtime. It generates an OCI spec and drives the `ocijail` binary. | Every task fails at the create step. Nothing fails at startup, which makes it a confusing way to find out. |
+| **A Rust toolchain**: `pkg install rust` | **Only if you build from source.** The [package](install.md#5-install-satl) needs no toolchain at all. | Nothing, unless you are building; then see the version note below. |
 | **`pf.ko` loaded** | `satld` syntax-checks the anchor it is about to write when it brings up its bridge, and it does that in *every* `pf_mode` -- including the default. On FreeBSD 15 `pfctl` needs the module even to parse. | `satld` **refuses to start**. See [below](#pf-loaded-and-enabled). |
 | **pf enabled** -- `pf_enable=YES` | pf *is* SatL's data path: NAT for container egress, `rdr` for published ports. | The daemon runs and writes its anchors; nothing evaluates them. Containers get no outbound connectivity and no published port is redirected. |
 | **Three anchor lines in `/etc/pf.conf`** | SatL only ever writes inside `satl/*`, and an anchor that is not declared is never evaluated. | The daemon loads its rules into anchors nothing consults. Everything looks fine and nothing works. |
 | **`kern.racct.enable=1` in `/boot/loader.conf`, then a reboot** | Resource accounting is a boot-time tunable; `rctl(8)` rules cannot be installed without it. | `--memory` and `--cpus` are **accepted and silently not enforced**. `satld` warns at startup; nothing else complains, ever. |
-| **IP forwarding** — `gateway_enable=YES` | Container traffic is *routed* between the bridge and the egress interface. | Containers have **no outbound connectivity**, while inbound published ports still answer — which is the most misleading failure mode in the whole system. |
-| **Ports 2377/tcp, 2378/tcp, 4789/udp between nodes** | Only if you will cluster. 2377 is the mTLS control plane, 2378 the CA bootstrap a first-time joiner needs, 4789 the VXLAN data plane. If you will also use [encrypted overlays](../use/networks.md#encrypted): ESP (IP protocol 50) as well — no UDP on 4790–4999. | Joins hang or fail; overlay traffic goes nowhere while every interface reports itself healthy. |
+| **IP forwarding**: `gateway_enable=YES` | Container traffic is *routed* between the bridge and the egress interface. | Containers have **no outbound connectivity**, while inbound published ports still answer, which is the most misleading failure mode in the whole system. |
+| **Ports 2377/tcp, 2378/tcp, 4789/udp between nodes** | Only if you will cluster. 2377 is the mTLS control plane, 2378 the CA bootstrap a first-time joiner needs, 4789 the VXLAN data plane. If you will also use [encrypted overlays](../use/networks.md#encrypted): ESP (IP protocol 50) as well, no UDP on 4790–4999. | Joins hang or fail; overlay traffic goes nowhere while every interface reports itself healthy. |
 
 ## Which FreeBSD { #which-freebsd }
 
 **15.1-RELEASE and CURRENT, on amd64.**
 Both have been run: the single-host material on this site and the three-node cluster material were exercised on each.
 
-There is no version check anywhere in SatL — nothing reads `kern.osrelease` and compares it, and nothing is conditionally compiled — so "15.1" throughout this site is a statement about where a thing was *measured*, never about what the daemon will accept.
+There is no version check anywhere in SatL (nothing reads `kern.osrelease` and compares it, and nothing is conditionally compiled), so "15.1" throughout this site is a statement about where a thing was *measured*, never about what the daemon will accept.
 That cuts both ways, and it is worth being plain about which:
 
 - an older FreeBSD is not refused, it is simply untested, and the interfaces
@@ -64,7 +64,7 @@ zroot   893G   182G   711G        -         -    13%    20%  1.00x    ONLINE  -
 zfs_root = "tank/satl"
 ```
 
-SatL creates the five child datasets it needs — `raft`, `images`, `layers`, `containers`, `volumes` — under that root on first start.
+SatL creates the five child datasets it needs (`raft`, `images`, `layers`, `containers`, `volumes`) under that root on first start.
 You only create the root.
 
 The `state_dir` (default `/var/db/satl`) should be the root dataset's mountpoint.
@@ -72,7 +72,7 @@ The `state_dir` (default `/var/db/satl`) should be the root dataset's mountpoint
 
 ## The Rust version, checked on a real host
 
-Only relevant if you are building from source — installing
+Only relevant if you are building from source, installing
 [`satl-freebsd.pkg`](install.md#5-install-satl) skips this entirely.
 
 SatL's workspace declares `rust-version = "1.96"` and `edition = "2024"`.
@@ -87,7 +87,7 @@ rustc 1.96.1 (31fca3adb 2026-06-26) (built from a source tarball)
 !!! warning "There is no margin here"
 
     `pkg`'s `rust` is 1.96.1 against a floor of 1.96.
-    That works today, and it will keep working — but if your `pkg` repository is a snapshot older than this one, `cargo build` fails at the manifest with a `rustc 1.x is not supported by the following package` error before it compiles a line.
+    That works today, and it will keep working, but if your `pkg` repository is a snapshot older than this one, `cargo build` fails at the manifest with a `rustc 1.x is not supported by the following package` error before it compiles a line.
     Check `rustc --version` **before** the install steps, not during them.
 
     `rustup` is the escape hatch if your repository is behind.
@@ -151,7 +151,7 @@ INFO satld::node: kern.racct.enable=1; rctl(8) resource limits are enforced
 
 - **A container registry you can reach.**
   SatL pulls from any OCI registry.
-  `satl build` exists, but it builds FreeBSD images into one node's store — for anything else, or to share an image across nodes, you need a registry.
+  `satl build` exists, but it builds FreeBSD images into one node's store, for anything else, or to share an image across nodes, you need a registry.
   [First container](first-container.md) deals with this honestly.
 - **The `docker` CLI**, if you have it.
   `docker -H unix:///var/run/satl.sock version` works, and it is a useful independent check that the API surface is what it claims to be.

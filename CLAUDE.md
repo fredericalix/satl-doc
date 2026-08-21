@@ -15,7 +15,7 @@ fact about SatL is wrong on the site, the fix is usually in SatL or in
 `make` in the README and Makefile means **FreeBSD make (bmake)**. GNU make dies
 at `Makefile:33` (`.if defined(...)`) with "missing separator", so on macOS use
 `bmake` for every target below. `PYTHON` defaults to `python3.12` and MkDocs is
-invoked as `python3.12 -m mkdocs` — there is no guaranteed `mkdocs` binary on
+invoked as `python3.12 -m mkdocs`: there is no guaranteed `mkdocs` binary on
 the FreeBSD target; override `PYTHON=` if needed.
 
 ```sh
@@ -26,8 +26,8 @@ bmake help         # target list and the resolved SATL_SRC / SATL_BIN
 bmake clean        # remove site/ and .cache/check-gen
 ```
 
-There are no unit tests; `bmake check` is the test suite. To run one check —
-the equivalent of a single test — invoke the target (`bmake check-nav`,
+There are no unit tests; `bmake check` is the test suite. To run one check,
+the equivalent of a single test, invoke the target (`bmake check-nav`,
 `check-config`, `check-drift`, `check-gen`) or the tool directly, e.g.
 `python3.12 tools/check_nav.py --config mkdocs.yml --docs docs --require reference/cli`.
 
@@ -35,7 +35,7 @@ The SatL checkout on this machine is at `/Users/frederic/fax/src/satl`, not the
 Makefile's `${HOME}/src/satl` default, so pass it explicitly to make the
 source-comparing checks actually run:
 `bmake check-config SATL_SRC=/Users/frederic/fax/src/satl` (16 keys, passing).
-`check-drift` and `check-gen` additionally need built binaries — `bmake gen-fresh`
+`check-drift` and `check-gen` additionally need built binaries; `bmake gen-fresh`
 would produce them, and that needs FreeBSD.
 
 Regenerating the CLI reference needs a SatL checkout and a Rust toolchain:
@@ -47,13 +47,13 @@ bmake gen ALLOW_STALE=1   # generate from a binary that failed drift, stamping a
 ```
 
 `SATL_BIN`/`SATLD_BIN` default to `.cache/target/release/` and deliberately
-**not** `/usr/local/bin` — an installed `satl` was once three verbs behind the
+**not** `/usr/local/bin`: an installed `satl` was once three verbs behind the
 source, producing a reference that looked complete and was not.
 
 `check-drift`, `check-gen` and `check-config` **skip with a loud stderr notice**
 when `SATL_SRC` or the binaries are absent (the usual state on a non-FreeBSD
 machine), so `serve`, `build` and `check` all still succeed there. A silent pass
-is never what happened — read the notices.
+is never what happened; read the notices.
 
 ## Architecture
 
@@ -67,7 +67,7 @@ blank lines (clap emits whitespace-only lines inside an entry; `--host` is
 exactly that shape). Committed because the site must build with no SatL
 checkout, no Rust toolchain and no FreeBSD; safe to commit because `check-gen`
 regenerates into `.cache/check-gen` and diffs. Generated pages carry **no
-timestamp** on purpose — a timestamp would churn every diff and make `check-gen`
+timestamp** on purpose: a timestamp would churn every diff and make `check-gen`
 useless; per-page dates come from git via `git-revision-date-localized`.
 
 **Judgement.** `overlay/cli.yml` holds only what `--help` cannot carry:
@@ -80,7 +80,7 @@ flag ever reaches a page). Facts are generated; judgement is written there.
 
 **Prose.** Everything else under `docs/`. Narrative pages deep-link into
 generated pages by anchor (`../reference/cli/network.md#satl-network`) instead
-of restating flag tables — which is why `validation.links.anchors: warn` plus
+of restating flag tables, which is why `validation.links.anchors: warn` plus
 `--strict` matters: those anchors move when SatL renames a subcommand.
 
 ### The four checks and what each protects
@@ -90,7 +90,7 @@ of restating flag tables — which is why `validation.links.anchors: warn` plus
 | `check_drift.py` | `crates/satl-cli/src/cli.rs` (`pub enum Command`, by regex) | binary verbs ≠ source verbs |
 | `check-gen` (Makefile: `gen_cli.py` + `diff -ru`) | the binaries | committed pages ≠ generator output |
 | `check_config_keys.py` | `crates/satld/src/config.rs` (`struct ConfigFile`) | a key documented but not accepted, or accepted but not documented |
-| `check_nav.py` | — | a `docs/reference/cli/*.md` missing from nav, or a nav entry with no file |
+| `check_nav.py` | nothing | a `docs/reference/cli/*.md` missing from nav, or a nav entry with no file |
 
 The SatL-source parsers are deliberately regex, not Rust parsers: they read a
 tree this repo does not own and only need variant/field names.
@@ -101,12 +101,12 @@ tree this repo does not own and only need variant/field names.
   Wording of a flag → change SatL, rebuild, `bmake gen`. How flags are grouped,
   paired or explained → change `overlay/cli.yml`, `bmake gen`.
 - When `gen` adds a page (SatL gained a verb), add the `nav:` entry in
-  `mkdocs.yml` yourself — `gen` cannot, and MkDocs reports an unreachable page
+  `mkdocs.yml` yourself; `gen` cannot, and MkDocs reports an unreachable page
   as nothing at all.
 - Every `satld.toml` key needs a ``### `key` `` heading in
   **`docs/reference/satld-toml.md`** (the key-by-key reference the checker
   reads). `docs/config/satld-toml.md` is the narrative companion and is not
-  checked — keep the split: decisions in `config/`, exact types and defaults in
+  checked; keep the split: decisions in `config/`, exact types and defaults in
   `reference/`.
 - `strict: false` lives in `mkdocs.yml` and `--strict` is passed by the
   Makefile's `build`. Don't "fix" that: a strict `serve` dies on half-typed
@@ -138,10 +138,18 @@ tree this repo does not own and only need variant/field names.
   (--opt encrypted) + regen`. Append `+ regen` when the commit includes
   regenerated pages, and keep prose and regen in one commit when they belong
   together.
+- **No em dashes (`—`) anywhere a reader sees.** Not in prose, not in headings,
+  not in table cells. Use a comma; a semicolon when the two halves are whole
+  sentences, a colon for a label and its gloss or before a list, parentheses for
+  an aside that already contains commas. The two exceptions are verbatim
+  `console`/code blocks, which are output and never edited, and the literal
+  character where the docs discuss it (`docs/trouble/reading-the-log.md`). The
+  generated pages under `reference/cli/` still carry some: they come from clap's
+  `--help` text, so the fix is in SatL, not here.
 - One sentence per line in the Markdown source. Rendered output is unaffected
   (Python-Markdown folds single newlines into spaces), and diffs then point at
   the sentence that changed instead of at a reflowed paragraph. New prose should
   match; the generated pages under `reference/cli/` are exempt.
 - The documentation is CC BY 4.0 (`LICENSE`); SatL itself is BSD-2-Clause. Keep
-  the two distinct — never write anything that lets a reader infer one licence
+  the two distinct; never write anything that lets a reader infer one licence
   from the other.

@@ -8,10 +8,10 @@ This page is meant to be handed to whoever runs the network.
 | Port | Proto | Bound by | Reached by | Authentication |
 | --- | --- | --- | --- | --- |
 | **2377** | TCP | every manager | other nodes in the cluster | **mutual TLS** against the cluster root |
-| **2378** | TCP | every manager | a node that is joining, once | **none** — see [below](#the-bootstrap-port) |
+| **2378** | TCP | every manager | a node that is joining, once | **none**; see [below](#the-bootstrap-port) |
 | **4789** | UDP | every node with an overlay task | other nodes in the cluster | none (VXLAN) |
-| **4790–4999** | UDP | every node with an **encrypted** overlay task | other nodes in the cluster | IPsec ESP — see [below](#encrypted-vxlan) |
-| — | ESP (IP proto 50) | same | same | the ESP flow itself |
+| **4790–4999** | UDP | every node with an **encrypted** overlay task | other nodes in the cluster | IPsec ESP; see [below](#encrypted-vxlan) |
+| no port | ESP (IP proto 50) | same | same | the ESP flow itself |
 | `/var/run/satl.sock` | unix | every node | local operators and tooling | filesystem permissions (`0660`) |
 
 Published container ports are separate and are whatever your services ask for, plus the dynamic ingress range **30000–32767** for ports the allocator assigns.
@@ -21,7 +21,7 @@ The last two rows exist only once a network is created with `--opt encrypted`; a
 4789 and the encrypted-overlay range belong on the cluster's private network;
 the API socket is a unix socket and is not on the network at all.
 
-## 2377/TCP — the internal mTLS listener { #mtls }
+## 2377/TCP: the internal mTLS listener { #mtls }
 
 One TCP listener carries every internal service:
 
@@ -44,15 +44,15 @@ Properties a network admin needs:
 - Managers do dial each other on 2377 for Raft, so between managers the rule is
   symmetric.
 - The address is `listen_addr` in [`satld.toml`](satld-toml.md) (default `0.0.0.0:2377`), and what peers are told to dial is `advertise_addr`.
-  Set `advertise_addr` explicitly on a multi-homed node — unset, it is derived from the interface carrying the default route, which on a cloud instance is usually the public NIC rather than the private network you meant.
+  Set `advertise_addr` explicitly on a multi-homed node; unset, it is derived from the interface carrying the default route, which on a cloud instance is usually the public NIC rather than the private network you meant.
 
-## 2378/TCP — the NodeCA bootstrap { #the-bootstrap-port }
+## 2378/TCP: the NodeCA bootstrap { #the-bootstrap-port }
 
 `satl swarm join host:2377` derives this port itself; it is always
 `listen_addr`'s port plus one.
 
 **Why an unauthenticated port is not a hole.**
-A node joining for the first time has no certificate — that is the entire point of joining — so it cannot present one on the mTLS port, and rustls builds a single mandatory client verifier for a server, admitting no per-service exception.
+A node joining for the first time has no certificate (that is the entire point of joining), so it cannot present one on the mTLS port, and rustls builds a single mandatory client verifier for a server, admitting no per-service exception.
 Hence a second listener.
 
 What makes it safe is the join token:
@@ -66,7 +66,7 @@ What makes it safe is the join token:
 4. Only then does it submit a signing request, authenticated by the token's secret, and receive a certificate.
    Every subsequent connection it makes is mTLS on 2377.
 
-So the untrusted channel carries exactly one thing — a public trust bundle — and that thing is pinned out of band by a token you copied from a manager.
+So the untrusted channel carries exactly one thing, a public trust bundle, and that thing is pinned out of band by a token you copied from a manager.
 An attacker who can intercept 2378 cannot substitute their own CA, and one who cannot read the token cannot obtain a certificate.
 
 Two consequences worth writing on the firewall ticket:
@@ -76,23 +76,23 @@ Two consequences worth writing on the firewall ticket:
 - **A join token is a credential.**
   Treat it like a password: it is void the moment the root CA is rotated, and it should never appear in an argv.
 
-## 4789/UDP — VXLAN { #vxlan }
+## 4789/UDP: VXLAN { #vxlan }
 
 - The overlay data plane.
   One UDP socket per node, shared by every unencrypted overlay network on it: several VXLAN interfaces with the same local address and different VNIs all use it, each keeping an independent forwarding table.
-  (Encrypted networks bind their own ports — see [below](#encrypted-vxlan).)
+  (Encrypted networks bind their own ports; see [below](#encrypted-vxlan).)
 - **Unicast only.**
   SatL programs the forwarding tables from its own cluster state and never uses multicast, so no multicast routing or IGMP snooping is required of the fabric.
 - **Cleartext, unless the network opts in.**
   An ordinary overlay carries the container traffic as it is on this port.
-  A network created with `--opt encrypted` never uses 4789 at all: its VTEPs bind a dedicated port from **4790–4999** and its datagrams cross the underlay as ESP — see [below](#encrypted-vxlan) and [Networks](../use/networks.md#encrypted).
+  A network created with `--opt encrypted` never uses 4789 at all: its VTEPs bind a dedicated port from **4790–4999** and its datagrams cross the underlay as ESP; see [below](#encrypted-vxlan) and [Networks](../use/networks.md#encrypted).
 - **The MTU matters more than usual.**
   VXLAN over IPv4 costs **50 bytes**; SatL sets the overlay MTU to the measured underlay MTU minus 50 (minus 84 on an encrypted network, where ESP takes another 34).
-  A path that drops IP fragments turns a wrong MTU from a throughput problem into a hang — see [the overlay troubleshooting page](../trouble/overlay.md#fragmentation).
+  A path that drops IP fragments turns a wrong MTU from a throughput problem into a hang; see [the overlay troubleshooting page](../trouble/overlay.md#fragmentation).
 - The module is not in the GENERIC kernel.
   `satld` runs `kldload -n if_vxlan` itself, but `if_vxlan_load="YES"` in `/boot/loader.conf` makes a failure surface at boot rather than on the first overlay network.
 
-## 4790–4999/UDP and ESP — encrypted overlays { #encrypted-vxlan }
+## 4790–4999/UDP and ESP: encrypted overlays { #encrypted-vxlan }
 
 This range is silent until someone runs `satl network create -d overlay --opt encrypted`; the how and why of the feature itself is on [Networks](../use/networks.md#encrypted).
 What the network side of it looks like:
@@ -101,20 +101,20 @@ What the network side of it looks like:
   The port is the only per-network selector the kernel's IPsec policy database can match on FreeBSD, so it is what keeps two encrypted networks' keyrings apart. 210 ports is generous against the number of encrypted networks a cluster will have.
 - **On the wire it is ESP, not VXLAN.**
   The VXLAN datagram is wrapped in ESP transport mode (AES-128-GCM), so a capture between two nodes shows IP protocol 50.
-  A firewall between nodes must pass **ESP** in addition to 4789/udp if encrypted networks are in use — and only then.
+  A firewall between nodes must pass **ESP** in addition to 4789/udp if encrypted networks are in use, and only then.
   No legitimate UDP ever crosses on 4790–4999: the sender's security policy encrypts or drops, and each node's own guard drops cleartext arriving on those ports.
 - **Cleartext on those ports is dropped, by pf.**
-  The SPD on its own does not fail closed inbound on FreeBSD, so `satld` loads a `satl/guard` anchor — block the range on the underlay, pass decapsulated packets on `enc0` — on the first encrypted network a node hosts, and flushes it when the last one leaves.
+  The SPD on its own does not fail closed inbound on FreeBSD, so `satld` loads a `satl/guard` anchor (block the range on the underlay, pass decapsulated packets on `enc0`) on the first encrypted network a node hosts, and flushes it when the last one leaves.
   `pfctl -a satl/guard -sr` shows the live rules and their counters.
   Making `enc0` presentation work needs `net.enc.in.ipsec_filter_mask=2`, which `satld` sets node-wide, once, and deliberately never restores.
 - **ESP costs 34 bytes per packet** (measured), which is why an encrypted
-  overlay's MTU is underlay − 84 — 1416 on a 1500 underlay — rather than the
+  overlay's MTU is underlay − 84, 1416 on a 1500 underlay, rather than the
   cleartext underlay − 50.
 
 ## The API socket { #socket }
 
 - `/var/run/satl.sock` by default (`socket_path` in `satld.toml`), mode `0660`,
-  owned by the user and group `satld` runs as — root, so `root:wheel` on a stock
+  owned by the user and group `satld` runs as, root, so `root:wheel` on a stock
   FreeBSD host.
 - There is **no TCP listener for the Docker API**, and no configuration key to ask for one.
   Remote access means SSH, or forwarding the socket yourself.
@@ -125,7 +125,7 @@ What the network side of it looks like:
 
 SatL owns the `satl/*` anchors and **never touches rules outside them**.
 The daemon refuses, in code, to load into any anchor outside `satl`/`satl/*`.
-It regenerates the whole anchor ruleset on every change — there are no incremental edits — and re-asserts it periodically, so an anchor flushed by hand comes back within a minute.
+It regenerates the whole anchor ruleset on every change (there are no incremental edits), and re-asserts it periodically, so an anchor flushed by hand comes back within a minute.
 
 An operator declares the anchors once, in `/etc/pf.conf`.
 **Translation anchors must come before filter rules**, as pf requires:
@@ -172,7 +172,7 @@ pfctl -a satl/guard -sr
 pfctl -a 'satl/*' -s all
 ```
 
-An empty anchor reports `does not exist` — that is not an error.
+An empty anchor reports `does not exist`; that is not an error.
 
 ### `pf_mode`
 
@@ -192,7 +192,7 @@ sysrc gateway_enable=YES              # persistent
 sysctl net.inet.ip.forwarding=1       # immediate
 ```
 
-Without it, the NAT rule matches nothing useful and containers have no outbound connectivity — while inbound redirects still answer, which makes the symptom confusing.
+Without it, the NAT rule matches nothing useful and containers have no outbound connectivity, while inbound redirects still answer, which makes the symptom confusing.
 `satld` checks the sysctl at startup and warns when it is off.
 
 NAT also needs to know which interface to translate out of.
@@ -209,7 +209,7 @@ published on the public interface:
 | every node's private address | every manager's private address | 2377/tcp | Raft, dispatcher, control, NodeCA |
 | a joining node's private address | one manager's private address | 2378/tcp | first-contact bootstrap (only while joining) |
 | every node's private address | every node's private address | 4789/udp | VXLAN overlay |
-| every node's private address | every node's private address | ESP (proto 50) | only with `--opt encrypted` networks — [see above](#encrypted-vxlan) |
+| every node's private address | every node's private address | ESP (proto 50) | only with `--opt encrypted` networks; [see above](#encrypted-vxlan) |
 | the internet, or your load balancer | every node's public address | the published ports | your services |
 | your workstation | every node | 22/tcp | operations |
 

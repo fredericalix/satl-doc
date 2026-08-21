@@ -5,7 +5,7 @@ satl service update --image registry.example.com/app:2 web
 ```
 
 That replaces the tasks of `web` in waves, under the policy stored in its spec.
-The policy has two halves — how to roll forward, and how to roll back — and each half takes the same five knobs plus an order.
+The policy has two halves (how to roll forward, and how to roll back), and each half takes the same five knobs plus an order.
 All twelve flags are accepted by both [`satl service create`](../reference/cli/service.md#satl-service-create) and [`satl service update`](../reference/cli/service.md#satl-service-update), with identical meaning and Docker's names, spellings and defaults; they are listed once in the [update and rollback policy reference](../reference/cli/service.md#service-policy).
 
 --8<-- "ops-manager-only.md"
@@ -27,13 +27,13 @@ Two sentences, and they are not the same sentence.
     `stop-first`, delay 0.
 
     That is deliberate rather than sloppy.
-    `Parallelism: 0` means "replace every slot at once" to the daemon, and it must never be arrived at by omission — which is exactly what would happen if an unnamed field were sent as its zero value.
+    `Parallelism: 0` means "replace every slot at once" to the daemon, and it must never be arrived at by omission, which is exactly what would happen if an unnamed field were sent as its zero value.
 
     The *other* half is left alone.
     Naming an `--update-*` flag does not fill in the `--rollback-*` defaults, and vice versa.
 
 The defaults, when a half is filled in: parallelism 1, delay 0, failure action `pause`, monitor 5 s, max failure ratio 0, order `stop-first`.
-`--rollback-failure-action` takes `pause` and `continue` only — a rollback never rolls back — exactly as Docker's own help documents, though the daemon would accept `rollback`.
+`--rollback-failure-action` takes `pause` and `continue` only, a rollback never rolls back, exactly as Docker's own help documents, though the daemon would accept `rollback`.
 
 ## Watching a rollout
 
@@ -49,7 +49,7 @@ $ satl service inspect web | jq '.[0].UpdateStatus'
 }
 ```
 
-`satl service inspect --pretty` prints the spec, not the rollout — for progress,
+`satl service inspect --pretty` prints the spec, not the rollout, for progress,
 read `UpdateStatus` from the JSON.
 
 `UpdateStatus.State` moves through `updating` → `completed`, or into `paused`, `rollback_started`, `rollback_completed`, `rollback_paused`.
@@ -82,7 +82,7 @@ the new one climbing through the state machine.
     SwarmKit starts the next batch as soon as the previous task reaches `RUNNING`, and keeps watching for failures in the background.
     SatL makes the failure-observation window **part of the batch**: the updater does not start the next slot until the current one has been `RUNNING` for `Monitor`.
 
-    With the defaults — `Parallelism: 1`, `Monitor: 5s` — that is 5 seconds per
+    With the defaults (`Parallelism: 1`, `Monitor: 5s`) that is 5 seconds per
     slot, so a six-replica update takes at least 30 seconds even if every task
     starts instantly.
 
@@ -93,11 +93,11 @@ the new one climbing through the state machine.
     `MaxFailureRatio` behaves as documented either way.
 
 `--update-delay` is separate and additional: it is the pause *between* batches, on top of the monitor window.
-`--update-order start-first` brings the new task up before taking the old one down, which needs the service to tolerate two tasks in one slot briefly — and on the nodes publishing that service's port, means the [round-robin pool](publishing-ports.md#one-port-many-tasks-the-rule-is-static-the-pool-is-a-table) briefly holds both.
+`--update-order start-first` brings the new task up before taking the old one down, which needs the service to tolerate two tasks in one slot briefly, and on the nodes publishing that service's port, means the [round-robin pool](publishing-ports.md#one-port-many-tasks-the-rule-is-static-the-pool-is-a-table) briefly holds both.
 
 ## A paused update, and how to get out of it
 
-With `--update-failure-action pause` — the default — a rollout that trips
+With `--update-failure-action pause`, the default, a rollout that trips
 `MaxFailureRatio` stops where it is.
 
 ```
@@ -106,7 +106,7 @@ Message:            update paused: 2 of 6 tasks failed
 ```
 
 The slot it was replacing may be empty, and the updater deliberately does nothing more for that service: it will not keep feeding replicas to a spec that is failing.
-**Everything else keeps working** — scaling, the restart policy, node eviction — and the paused service's tasks go on being reconciled.
+**Everything else keeps working** (scaling, the restart policy, node eviction), and the paused service's tasks go on being reconciled.
 Only *further slots stop being replaced*.
 
 !!! success "Push a corrected spec. Do not remove and recreate."
@@ -122,7 +122,7 @@ Only *further slots stop being replaced*.
     identity, its allocated published ports and its history.
 
     The status is cleared on **every** update, not only one that really changes
-    the spec — whether the spec changed is decided by the store when the
+    the spec; whether the spec changed is decided by the store when the
     transaction commits, so an update posting an identical spec clears the status
     and replaces no task.
 
@@ -142,7 +142,7 @@ A rollback that itself hits the failure ratio *pauses* rather than rolling again
     ```
 
     Docker behaves the same way.
-    It is called out here because the field's absence, right after something went wrong, reads as the daemon having lost the previous specification — and it has not: it has declined to keep a failed one.
+    It is called out here because the field's absence, right after something went wrong, reads as the daemon having lost the previous specification, and it has not: it has declined to keep a failed one.
 
     `?rollback=previous` therefore has nothing to go back to until the next
     update.
@@ -161,13 +161,13 @@ curl -s --unix-socket /var/run/satl.sock -X POST \
 `rollback` accepts only `previous`.
 It sets the status to `rollback_started` with the message `manually requested rollback`, so the updater knows a rollout is under way and applies `RollbackConfig` rather than `UpdateConfig`.
 
-`--force` — Docker's "restart with no spec change" — is also missing; the
+`--force`, Docker's "restart with no spec change", is also missing; the
 equivalent is bumping `TaskTemplate.ForceUpdate` through the API.
 
-## What else replaces tasks — and one update that does not
+## What else replaces tasks, and one update that does not
 
 A `service update` that changes **only** resource limits or reservations is the exception to everything above: it does not roll at all.
-The new values are applied to the live jails' rctl rules in place — see [Resizing a live service](resource-limits.md#resizing-a-live-service).
+The new values are applied to the live jails' rctl rules in place; see [Resizing a live service](resource-limits.md#resizing-a-live-service).
 
 A rolling update is not the only thing that moves containers, and the others do
 not go through the update policy:
@@ -175,7 +175,7 @@ not go through the update policy:
 - **`satl service scale web=6`** creates or removes tasks to reach the count.
   Scaling up places new tasks; scaling down stops the highest slots.
 - **A node drained** (`satl node update --availability drain <node>`) gives up every task it runs.
-  Eviction from a draining node is the one case where SatL ignores the service's restart delay — an operator emptying a node is waiting on it — so the replacements are created immediately.
+  Eviction from a draining node is the one case where SatL ignores the service's restart delay (an operator emptying a node is waiting on it), so the replacements are created immediately.
 - **A node label change** that stops satisfying a constraint shuts the task down and replaces it on a node that does match, at the service's restart delay.
   So editing a label is a placement change that moves running containers.
 
@@ -184,5 +184,5 @@ not go through the update policy:
     SatL has no rebalancer.
     Tasks a drain moved stay where they were re-placed: a 6-replica service drained off one of three nodes stays 3/3 on the survivors, and the returned node runs none of it.
 
-    That is deliberate — moving a healthy task costs an outage for cosmetic balance — but it means a node that has been drained and returned stays empty until something places work on it.
+    That is deliberate, moving a healthy task costs an outage for cosmetic balance, but it means a node that has been drained and returned stays empty until something places work on it.
     Scaling the service up and back down, or any update that replaces its tasks, spreads it again.

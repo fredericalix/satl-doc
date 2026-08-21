@@ -2,7 +2,7 @@
 
 A healthcheck is a command SatL runs inside your container, on a timer, to decide whether it is actually serving.
 The semantics are Docker's, taken from Docker's own implementation rather than from its documentation.
-What differs is what health *does* — and it does considerably more here, because a container is a task.
+What differs is what health *does*, and it does considerably more here, because a container is a task.
 
 ## Defining one
 
@@ -41,13 +41,13 @@ or the spec directly:
 Durations are nanoseconds on the wire, as everywhere in the Docker API.
 
 `CMD` execs the argument vector directly; `CMD-SHELL` goes through `/bin/sh -c`;
-`NONE` — and any unrecognised first element — means no probe, with a warning,
+`NONE`, and any unrecognised first element, means no probe, with a warning,
 exactly as Docker does.
 
-!!! warning "Probe the task's own address — there is no `localhost`"
+!!! warning "Probe the task's own address; there is no `localhost`"
 
     A SatL jail's `lo0` carries only `::1`; `127.0.0.1` is unassigned, so the Docker-style `curl http://localhost/` above connects to nothing.
-    Read the task's own address off its interface instead — and note the minimal `freebsd-runtime` base has no `awk`, so the parsing is pure shell:
+    Read the task's own address off its interface instead, and note the minimal `freebsd-runtime` base has no `awk`, so the parsing is pure shell:
 
     ```
     ip=$(/sbin/ifconfig | while read a b rest; do [ "$a" = inet ] && { echo "$b"; break; }; done)
@@ -60,7 +60,7 @@ exactly as Docker does.
 !!! warning "The image's `HEALTHCHECK` is not inherited"
 
     Only the healthcheck in the service or container spec is honoured.
-    An image that declares `HEALTHCHECK` in its Dockerfile gets **no probe**, and its task reaches `RUNNING` on start — where Docker, and Docker Swarm, would inherit it and gate on it.
+    An image that declares `HEALTHCHECK` in its Dockerfile gets **no probe**, and its task reaches `RUNNING` on start, where Docker, and Docker Swarm, would inherit it and gate on it.
 
     Docker's "inherit from the image" marker, `Test: [""]`, therefore means "no
     healthcheck" here.
@@ -77,7 +77,7 @@ Its exit status is the result: **0 is healthy, anything else is a failure**.
 | `Retries` | 3 | **consecutive** failures needed for `unhealthy` |
 | `StartPeriod` | 0 | grace window at the beginning |
 
-Those are Docker's defaults, and they are what you get — unless the service
+Those are Docker's defaults, and they are what you get, unless the service
 [publishes a port](#publishing-a-port-tightens-the-defaults), which changes three
 of them.
 
@@ -88,8 +88,8 @@ of them.
 - Failures are ignored while the status is `starting` *and* the probe began inside `StartPeriod`.
   Once a container has been healthy once, `StartPeriod` no longer protects it.
 - A probe that cannot be run at all, or that outlives its timeout, is recorded as
-  exit code `-1` with Docker's own wording (`Health check exceeded timeout (2s)`)
-  — and the probe process is `SIGKILL`ed rather than abandoned, because a probe
+  exit code `-1` with Docker's own wording (`Health check exceeded timeout (2s)`),
+  and the probe process is `SIGKILL`ed rather than abandoned, because a probe
   left running inside the jail can [keep the container's rootfs
   busy](../config/state.md#the-container-dataset-that-outlives-its-container)
   long after the container is gone.
@@ -98,7 +98,7 @@ of them.
 
 ??? note "`Healthcheck.StartInterval` is not supported"
 
-    Docker's `start_interval` — a shorter probe interval during the start period — has no field in SatL's service spec.
+    Docker's `start_interval` (a shorter probe interval during the start period) has no field in SatL's service spec.
     The behaviour it exists for is hard-wired instead: while the container has never yet been healthy, SatL probes on `min(interval, 5 s)`, which is Docker's own default for the field.
     So a slow starter is not held back by a long `interval`, and an interval already shorter than 5 s is never slowed down.
 
@@ -116,13 +116,13 @@ defaults than Docker's:
 | `Interval` | 30 s | **5 s** |
 | `Timeout` | 30 s | **3 s** (or `min(30 s, interval)` if you set the interval) |
 | `Retries` | 3 | **2** |
-| `StartPeriod` | 0 | 0 — unchanged, it is a property of your boot time |
+| `StartPeriod` | 0 | 0; unchanged, it is a property of your boot time |
 
 They are applied **field by field, and only where you left the field unset**.
 An explicit value always wins, so Docker's behaviour is available by asking for it (`Interval: 30000000000`, `Timeout: 30000000000`, `Retries: 3`).
 
 The tighter timeout is not cosmetic.
-The prober runs one probe at a time, so an oversized timeout does not overlap probes — it stretches the detection bound to `retries × (interval + timeout)` with nothing in the configuration looking wrong.
+The prober runs one probe at a time, so an oversized timeout does not overlap probes; it stretches the detection bound to `retries × (interval + timeout)` with nothing in the configuration looking wrong.
 A hanging probe on 5 s/30 s/2 takes 70 s to a verdict, not 10 s.
 
 !!! note "The values are written into the stored spec, not applied at probe time"
@@ -153,17 +153,17 @@ The same run with Docker's defaults would be about 90 s of traffic into a dead b
 
     A long GC pause, a wedged dependency, a probe that blips under load: what used
     to need 90 s of failure to cost you a container now needs 10 s. That is how a
-    restart storm starts where the operator only wanted the traffic to stop — and
+    restart storm starts where the operator only wanted the traffic to stop, and
     the tighter the probe, the smaller the hiccup that triggers it.
 
 Two things bound it.
-`Retries` is what separates a blip from a sustained failure — 2 retries at 5 s means the probe must fail for **10 s continuously**, and a single success resets the streak.
+`Retries` is what separates a blip from a sustained failure; 2 retries at 5 s means the probe must fail for **10 s continuously**, and a single success resets the streak.
 And the restart budget bounds the loop: `RestartPolicy.MaxAttempts` counts replacements per replica and per spec version and [survives a leadership change](../trouble/cluster.md#restart-budget-spent), so a service created with it stops replacing instead of churning for ever.
 The default is unlimited, so on a service that matters, set it.
 
 ### Trading detection latency for stability
 
-A verdict takes up to `retries + 1` cycles of `interval + timeout` — one cycle more than `retries`, because a container stops answering *between* two probes and the probe already in flight may have passed a moment before.
+A verdict takes up to `retries + 1` cycles of `interval + timeout`, one cycle more than `retries`, because a container stops answering *between* two probes and the probe already in flight may have passed a moment before.
 The stop that follows takes up to `stop_grace_period` (10 s by default), and a failed `pfctl` load is repaired by the next port pass within 5 s:
 
 | `interval` | `retries` | sustained failure needed | worst case out of the pool |
@@ -175,7 +175,7 @@ The stop that follows takes up to `stop_grace_period` (10 s by default), and a f
 
 The third column is what protects a healthy-but-slow container; the fourth is how long a dead one keeps taking traffic.
 **Raising `retries` is usually the better knob**: it lengthens the failure a blip has to sustain without slowing the probe down.
-Raising `interval` slows detection *and* slows the first probe after a start — and note that setting the interval explicitly also moves the timeout to `min(30 s, interval)`, so set `timeout` too if your probe is slow.
+Raising `interval` slows detection *and* slows the first probe after a start, and note that setting the interval explicitly also moves the timeout to `min(30 s, interval)`, so set `timeout` too if your probe is slow.
 
 ### A published service with no probe at all is a warning
 
@@ -188,13 +188,13 @@ as soon as the jail starts, before the workload can answer, and stay published
 while a dead container keeps its share of the traffic
 ```
 
-It is a warning and not a refusal, because a service with no probe is legitimate — you may health-check the port from a load balancer instead.
+It is a warning and not a refusal, because a service with no probe is legitimate; you may health-check the port from a load balancer instead.
 It is just usually not what the publisher meant.
 The measurement behind it: the redirect was installed 5 ms after `jail start`, against the 250 ms the nginx in that jail needed to bind its port.
 
 !!! danger "`satl run -p` is always in that state, and cannot be fixed"
 
-    The container API reads **no healthcheck at all** — Docker's `--health-cmd` and friends are accepted by the JSON parser and dropped — and `satl run` has no flag to set one.
+    The container API reads **no healthcheck at all**, Docker's `--health-cmd` and friends are accepted by the JSON parser and dropped, and `satl run` has no flag to set one.
     So a published container is never health-gated: its redirect appears as soon as the jail starts and is never removed while the jail stays up.
 
     `satl run -p` is deliberately *not* warned about, because there would be no way to comply, and a warning nobody can act on is how warnings that matter get ignored.
@@ -216,7 +216,7 @@ The measurement behind it: the redirect was installed 5 ms after `jail start`, a
     rolling updater, which promotes a batch on observed `RUNNING`.
 
     So neither can hand traffic to a container that has not yet said it is ready.
-    **This is what makes a [rolling update](rolling-updates.md) lose no requests** — not the update policy, which only controls pacing.
+    **This is what makes a [rolling update](rolling-updates.md) lose no requests**: not the update policy, which only controls pacing.
     Without a healthcheck, a task is `RUNNING` the moment its process starts, and a rollout will happily route to a container that is still opening its database connections.
 
     Docker has no equivalent: its container is `running` the moment it starts,
@@ -256,7 +256,7 @@ $ satl inspect web | jq '.[0].State.Health'
 
 `State.Health` appears **only when the node answering the request is the one running the task.**
 A worker reports health for its own tasks.
-A manager reports it for tasks placed on itself and **omits it entirely for tasks placed elsewhere** — where Docker, being single-host, always has it.
+A manager reports it for tasks placed on itself and **omits it entirely for tasks placed elsewhere**, where Docker, being single-host, always has it.
 
 That is invariant, not an oversight: health never enters the Raft store, because a worker holds only ephemeral executor state.
 Two follow-ons:
@@ -267,8 +267,8 @@ Two follow-ons:
   After a `satld` restart, an adopted running task starts again at `starting` and is re-probed, with the failing streak back at zero.
   Its history is gone; its container was never disturbed.
 
-To see the health of a task running elsewhere, ask the node that runs it —
-`satl service ps <service>` names it — over that node's own socket, or read that
+To see the health of a task running elsewhere, ask the node that runs it:
+`satl service ps <service>` names it, over that node's own socket, or read that
 node's log:
 
 ```sh

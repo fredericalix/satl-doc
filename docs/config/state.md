@@ -1,7 +1,7 @@
 # Node state on disk
 
 Everything a node knows lives under one ZFS dataset.
-On a default install that is `zroot/satl`, mounted at `/var/db/satl`, and the two are configured separately — [`zfs_root`](satld-toml.md#storage-first-because-it-is-the-one-that-refuses-to-start) names the dataset, `state_dir` names the path — which is why `satld` warns at startup when they disagree.
+On a default install that is `zroot/satl`, mounted at `/var/db/satl`, and the two are configured separately ([`zfs_root`](satld-toml.md#storage-first-because-it-is-the-one-that-refuses-to-start) names the dataset, `state_dir` names the path), which is why `satld` warns at startup when they disagree.
 
 Some of what is below is a dataset in its own right, and some is a plain directory on the root dataset.
 The difference matters: a dataset is what SatL snapshots, clones and destroys.
@@ -38,7 +38,7 @@ A worker has the directory and nothing meaningful in it.
 **`images`** is one dataset, not one per image: content-addressed blobs plus a
 small metadata file set mapping references and digests to what is on disk.
 
-**`layers/<chain-id>`** is one dataset per applied layer chain, keyed by the OCI chain ID — the digest of the diff-ID chain — so two images that share a base share the dataset.
+**`layers/<chain-id>`** is one dataset per applied layer chain, keyed by the OCI chain ID, the digest of the diff-ID chain, so two images that share a base share the dataset.
 Each carries an `@final` snapshot taken once the layer has been unpacked into it.
 Layer N is a clone of layer N−1's `@final`, which is what makes pulling a second image on a shared base nearly free.
 
@@ -46,7 +46,7 @@ Layer N is a clone of layer N−1's `@final`, which is what makes pulling a seco
 Named for the task, because a container *is* a task.
 
 **`volumes/<volume-name>`** is one dataset per named volume, mounted into jails with nullfs.
-Volumes deliberately outlive the containers that used them — see [Volumes, binds and tmpfs](../use/storage.md).
+Volumes deliberately outlive the containers that used them; see [Volumes, binds and tmpfs](../use/storage.md).
 
 ## The rest of the state directory
 
@@ -90,7 +90,7 @@ $ sudo cat /var/db/satl/net/satl.json
 ```
 
 `managers.json` is how a worker finds its cluster again after a restart.
-If it is lost, the daemon **refuses to start** with a message telling you to re-join rather than inventing a cluster of its own — which is the right refusal: a worker that self-initialised would become a one-node cluster running nothing.
+If it is lost, the daemon **refuses to start** with a message telling you to re-join rather than inventing a cluster of its own, which is the right refusal: a worker that self-initialised would become a one-node cluster running nothing.
 
 ## The `dek` file
 
@@ -109,7 +109,7 @@ Every secret in the cluster is inside that encryption, because the whole log is.
 
 ## Autolock: the DEK under an operator-held key { #autolock }
 
-By default `dek` is a plain 0600 file — anyone who reads the disk has it.
+By default `dek` is a plain 0600 file; anyone who reads the disk has it.
 `satl swarm update --autolock=true` changes that: every manager seals its DEK under a cluster-wide **unlock key** and deletes the plain file, leaving `raft/dek.sealed`.
 The unlock key is printed **once**, at enable time and at each rotation:
 
@@ -126,23 +126,23 @@ everything except `/_ping` and `POST /swarm/unlock` until the key arrives:
 satl swarm unlock --key '…'            # or pipe the key on stdin
 ```
 
-The DEK then exists only in memory — no plain file is ever written back.
+The DEK then exists only in memory; no plain file is ever written back.
 A wrong key is a 401.
 Disabling (`--autolock=false`) writes the plain `dek` back on every manager.
 
 !!! warning "The unlock key is not in any backup"
 
-    It lives in the encrypted store — readable only after an unlock — and in whatever password manager you put it in.
+    It lives in the encrypted store, readable only after an unlock, and in whatever password manager you put it in.
     On a cluster with autolock on, **back up the unlock key alongside the raft snapshots**, or a restore is a paperweight: `dek.sealed` without the key opens nothing.
     The key survives in the store across a CA rotation; it does not survive losing the quorum's stores.
 
     And plan restarts: a locked manager that reboots serves nothing until someone unlocks it.
-    Autolock trades unattended reboots for at-rest confidentiality — on a test cluster it is mostly a way to forget why the API answers 503.
+    Autolock trades unattended reboots for at-rest confidentiality; on a test cluster it is mostly a way to forget why the API answers 503.
 
 ## Crash recovery
 
 Cluster state recovers fully from `raft/` after an unclean stop, `kill -9`
-included, and the node's identity is stable across restarts — it is on disk in
+included, and the node's identity is stable across restarts; it is on disk in
 `raft/node-id`, not derived from anything that could change.
 
 Recovery is visible in the log.
@@ -156,7 +156,7 @@ INFO openraft::storage::helper: re-apply log [64..0) in 524 item chunks to state
 
 ??? note "`store transaction rejected` lines during replay are normal"
 
-    Replay re-applies entries that were already rejected the first time — a
+    Replay re-applies entries that were already rejected the first time, a
     write proposed from a stale version of an object, which the store refused
     then and refuses identically now:
 
@@ -177,9 +177,9 @@ That pass is described in [The rc.d service](service.md#what-a-restart-does-and-
 Removing a container does not always destroy its `containers/<task-id>` dataset
 straight away, and **that is correct rather than a leak**.
 
-A rootfs cannot be unmounted while the container's jail is still `DYING`, and `jail_remove(2)` does not destroy a prison — it moves it to `DYING`, where it stays until its last reference goes.
+A rootfs cannot be unmounted while the container's jail is still `DYING`, and `jail_remove(2)` does not destroy a prison; it moves it to `DYING`, where it stays until its last reference goes.
 A VNET jail whose container held an open TCP connection when it was removed keeps its network stack alive until the connection's control blocks finish closing on their own timers, with no process attached.
-That is **2 × `net.inet.tcp.msl`** — measured at 57.75 s with the default 30 s MSL, and 4.00 s with the MSL lowered inside the jail.
+That is **2 × `net.inet.tcp.msl`**, measured at 57.75 s with the default 30 s MSL, and 4.00 s with the MSL lowered inside the jail.
 It is the open connection that costs, not TCP as such: a container that closed its connections before being removed has its dataset destroyed on the first try.
 
 So `zfs destroy` fails, and it says *cannot unmount*, not *cannot destroy*:
@@ -207,7 +207,7 @@ sudo grep -a "periodic sweep destroyed a container"  /var/log/messages  # reclai
 ```
 
 The removal retries every 250 ms and asks `jls` on each failure whether a prison of that name still exists; while one does, the wait is expected.
-It gives up after 30 s — not because 30 s is enough, but because a removal is applied inline on the node's assignment stream, so a minute spent waiting here is a minute in which the node applies nothing else.
+It gives up after 30 s, not because 30 s is enough, but because a removal is applied inline on the node's assignment stream, so a minute spent waiting here is a minute in which the node applies nothing else.
 The dataset is then handed to a sweep that runs every 20 s, compares the datasets on disk against the tasks the store and the worker still claim, and destroys what neither claims.
 Two consecutive passes must agree before it destroys anything.
 
@@ -221,7 +221,7 @@ many vnodes the mount still holds (`mount -v | grep <task id>`).
 !!! warning "Images and layers are reclaimed only when you ask"
 
     Container datasets are reclaimed as described above.
-    **Image blobs and layer datasets are not**, until `satl system prune` is run — and it reclaims the node that answered it, not the cluster.
+    **Image blobs and layer datasets are not**, until `satl system prune` is run, and it reclaims the node that answered it, not the cluster.
     See [Reclaiming space](../use/reclaiming-space.md) before you let a node pull for a long time.
 
 ---
@@ -229,17 +229,17 @@ many vnodes the mount still holds (`mount -v | grep <task id>`).
 ## Backing this directory up
 
 Of everything above, **`raft/` is the only part worth a backup**, and only on a manager.
-It holds the entirety of the desired state — services, tasks, networks, nodes, secrets, configs, allocations — and the cluster's root CA.
+It holds the entirety of the desired state (services, tasks, networks, nodes, secrets, configs, allocations), and the cluster's root CA.
 Everything else in the state directory is node-local and rebuildable: images come back by pulling, containers by rescheduling, `certs/` by being re-issued from the CA inside `raft/` itself.
 
 Three facts decide how you copy it, and the [full
 procedure](../cluster/backup-restore.md) is measured rather than reasoned:
 
-- **`raft/` is its own ZFS dataset**, so a snapshot of it is atomic and crash-consistent — which is exactly the image the log's storage engine recovers from.
+- **`raft/` is its own ZFS dataset**, so a snapshot of it is atomic and crash-consistent, which is exactly the image the log's storage engine recovers from.
   `zfs snapshot zroot/satl/raft@backup`, then read the files out of `.zfs/snapshot/backup/`.
   A `cp -Rp` of the live directory smears across the copy window instead, and a torn copy has been observed to start and run *anyway*, so "it started" proves nothing.
 - **`dek` must be in the copy.**
-  Without it the restored log is unreadable, and `satld` refuses to start rather than minting a new key over sealed data — which would make the state unreadable for good.
+  Without it the restored log is unreadable, and `satld` refuses to start rather than minting a new key over sealed data, which would make the state unreadable for good.
   The key is per node: another manager's `dek` does not open this one's state.
 - **On a cluster that still has quorum, you may not need the backup at all.**
   A manager that lost its state is rejoined in about six seconds, and the surviving managers replicate everything back.

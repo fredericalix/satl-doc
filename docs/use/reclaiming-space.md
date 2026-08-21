@@ -20,8 +20,8 @@ Three things about *what* it asks are worth knowing before you type it the first
     Containers and networks are **cluster** objects, so pruning them acts on the whole cluster.
     Images, layers, blobs and volumes live on the node that pulled or created them, and a prune answered by one daemon reclaims **that daemon's node only**.
 
-    That asymmetry is what SatL is — a task and a network are store objects, an
-    image layer is a dataset on a particular disk — so both the prompt and the
+    That asymmetry is what SatL is; a task and a network are store objects, an
+    image layer is a dataset on a particular disk, so both the prompt and the
     summary name the node that answered:
 
     ```console
@@ -54,14 +54,14 @@ Three things about *what* it asks are worth knowing before you type it the first
     ```
 
 That prompt is the **only interactive thing in the whole CLI**; everything else `satl` does is non-interactive.
-It is Docker's prompt, and it fails safe: `y` or `yes` (any case) proceeds, and **anything else declines — including a stdin that cannot be read at all**.
+It is Docker's prompt, and it fails safe: `y` or `yes` (any case) proceeds, and **anything else declines, including a stdin that cannot be read at all**.
 A prune that went ahead because it could not ask would be the worst possible reading of silence.
 
 ## Pruning a stopped container removes the service behind it
 
 This surprises people, and it is the same answer [`satl rm` gives](containers-and-services.md#satl-rm-removes-the-backing-service).
 A container is a task of a service.
-Remove the container and leave the service, and the orchestrator refills the slot the moment the reaper frees it — so "prune the container" would *create* one.
+Remove the container and leave the service, and the orchestrator refills the slot the moment the reaper frees it, so "prune the container" would *create* one.
 
 !!! success "The safety rail is at the service, not at the container"
 
@@ -76,7 +76,7 @@ holding](../config/state.md#the-container-dataset-that-outlives-its-container).
 
 !!! note "This looks like a bug and is not"
 
-    Reclaiming a layer dataset is irreversible — only a registry can undo it — so a layer is destroyed only when **two consecutive passes**, 1.5 s apart within the one request, agree that nothing references it.
+    Reclaiming a layer dataset is irreversible, only a registry can undo it, so a layer is destroyed only when **two consecutive passes**, 1.5 s apart within the one request, agree that nothing references it.
     The claim set is assembled from readings that are each momentarily incomplete at different times: the store just after a leadership change, a worker just after a restart, the image store mid-pull.
     What the second pass disagreed about is reported rather than silently skipped:
 
@@ -89,13 +89,13 @@ There is a second, more common reason a layer survives a prune that removed its 
 A removed task is retained in the store's task history for a while, its spec names an image, and that image claims the layer.
 So:
 
-1. the first prune removes the containers and untags an image reference — and
+1. the first prune removes the containers and untags an image reference, and
    leaves the layer, correctly claimed;
 2. the task reaper prunes that history;
 3. a second prune untags the last reference and destroys the layer.
 
 Measured on this host: three stopped alpine containers and their services against a running nginx that had to survive untouched.
-Two invocations reclaimed 15.18 MB — the alpine layer (10.1 MB) only went on the second one.
+Two invocations reclaimed 15.18 MB; the alpine layer (10.1 MB) only went on the second one.
 **If a prune reclaimed less than you expected, run it again in a minute.**
 Running it twice costs nothing.
 
@@ -104,7 +104,7 @@ Running it twice costs nothing.
 | Object | Scope | Reclaimed when |
 | --- | --- | --- |
 | container | cluster | it is stopped **and** every container of its service is |
-| network | cluster | no task is attached and no service asks for it — the ingress network is never pruned |
+| network | cluster | no task is attached and no service asks for it; the ingress network is never pruned |
 | image record | node | `-a` only, and no task's spec names it |
 | image content (blob, manifest, config) | node | no image record reaches it |
 | layer dataset | node | no image chain, no clone and no apply in flight claims it, **on two passes** |
@@ -117,13 +117,13 @@ Three things a prune declines to do, all of them deliberate:
   One `INFO` line says so; run it again when the pull is done.
   The layer half is protected differently and does not have to stop.
 - **a layer something still holds a clone of is left alone**, with a `WARN` naming it.
-  ZFS refuses this itself (`filesystem has dependent clones`) and `zfs destroy -R`, which would force it, is never used — that flag would flatten a container's writable layer along with the image layer underneath.
+  ZFS refuses this itself (`filesystem has dependent clones`) and `zfs destroy -R`, which would force it, is never used; that flag would flatten a container's writable layer along with the image layer underneath.
 - **an image whose metadata is unreadable stops content reclamation for that pass** entirely, with a `WARN`.
   A record whose manifest is missing cannot say which blobs it needs, and reclaiming on that reading could delete a live layer.
 
 ??? note "Why there are no `<none>:<none>` images to prune"
 
-    SatL's image metadata maps a canonical reference to digests and nothing else, so an image with no reference simply has no record — a dangling image *record* is unrepresentable, which is also why `satl images` never prints `<none>:<none>`.
+    SatL's image metadata maps a canonical reference to digests and nothing else, so an image with no reference simply has no record; a dangling image *record* is unrepresentable, which is also why `satl images` never prints `<none>:<none>`.
     What a re-pulled tag leaves behind is therefore blobs, manifests and configs that nothing reaches, and **that** is what "dangling" means here: a prune without `-a` reclaims unreferenced content.
     With `-a` it additionally forgets every image record no task's spec asks for, reported as Docker's `untagged:`.
 
@@ -143,13 +143,13 @@ sudo grep -a "pull is in flight"                           /var/log/messages
 ## The differences from Docker's prune
 
 - **`satl system prune` is the only prune verb.**
-  There is no `satl container prune`, `satl image prune`, `satl network prune` or `satl volume prune` — though all four REST endpoints exist and behave as Docker's, so `docker -H unix:///var/run/satl.sock system prune` works.
+  There is no `satl container prune`, `satl image prune`, `satl network prune` or `satl volume prune`, though all four REST endpoints exist and behave as Docker's, so `docker -H unix:///var/run/satl.sock system prune` works.
 - **`--filter` is absent, and an unknown filter is a `400`.**
   `until=` and `label=` change *what gets deleted*, so accepting and ignoring them would delete more than the caller asked for.
   That is the one compatibility shortcut which cannot be taken by a command whose job is destroying things.
 - **`SpaceReclaimed` for containers can be short of the truth.**
   A container's rootfs cannot be destroyed while its jail is still `DYING`, so prune reports the bytes those datasets held when it looked, and the node's periodic sweep is what actually frees them within about a minute.
-  The alternative — waiting — would make a prune take a minute per stopped container.
+  The alternative, waiting, would make a prune take a minute per stopped container.
 
 ## Do not hand-delete a layer dataset
 

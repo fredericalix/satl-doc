@@ -44,8 +44,8 @@ not at the point of writing.
 `SATLD_BIN` mirrors `SATL_BIN` for the daemon. Neither defaults to
 `/usr/local/bin`: an installed `satl` is whatever was installed last, and a
 reference harvested from a stale one is missing whole commands while looking
-perfectly complete. That has already happened once here — the installed binary
-was three verbs behind — which is why `make gen` refuses to run before
+perfectly complete. That has already happened once here (the installed binary
+was three verbs behind), which is why `make gen` refuses to run before
 `tools/check_drift.py` agrees.
 
 ## The generated CLI reference
@@ -53,7 +53,7 @@ was three verbs behind — which is why `make gen` refuses to run before
 `docs/reference/cli/` (28 pages) and `docs/reference/satld.toml.sample` are
 **generated and committed**. Committed, because the site must build with no
 SatL checkout, no Rust toolchain and no FreeBSD. Safe to commit, because
-`make check-gen` regenerates into a scratch directory and diffs — a hand-edit
+`make check-gen` regenerates into a scratch directory and diffs; a hand-edit
 or a moved-on binary fails the build.
 
 **Do not edit those files.** To change what they say:
@@ -70,7 +70,7 @@ same idea as `satl service update --constraint-add`, and which flags must never
 be documented at all. Facts are generated; judgement is written down there.
 
 ```sh
-make gen           # regenerate (drift check first — it will refuse if stale)
+make gen           # regenerate (drift check first; it will refuse if stale)
 make gen-fresh     # rebuild satl/satld from SATL_SRC into .cache/, then gen
 ```
 
@@ -107,12 +107,12 @@ a published reference is made.
 | --- | --- |
 | `make check-drift` | a `satl` binary whose verbs disagree with `enum Command` in the source |
 | `make check-gen` | committed generated pages that differ from what the generator emits |
-| `make check-config` | a `satld.toml` key the daemon accepts and `docs/reference/satld-toml.md` omits — **or** a key documented here that `deny_unknown_fields` would reject |
+| `make check-config` | a `satld.toml` key the daemon accepts and `docs/reference/satld-toml.md` omits, **or** a key documented here that `deny_unknown_fields` would reject |
 | `make check-nav` | a page under `docs/reference/cli/` missing from the nav, or a nav entry with no file |
 | `make build` | broken links **and broken anchors** (`validation.links.anchors: warn` plus `--strict`) |
 
 `check-config` is not hypothetical: SatL's own `etc/satld.toml.sample`
-documents 11 of the daemon's 13 configuration keys — `cert_validity` and
+documents 11 of the daemon's 13 configuration keys; `cert_validity` and
 `overlay_blackhole` are absent from it. Nothing in a Rust build can catch that.
 
 `check-drift`, `check-gen` and `check-config` **skip with a loud notice** when
@@ -123,7 +123,7 @@ that has never seen SatL. `make build` and `make serve` never need either.
 
 ```
 docs/           the site content
-  reference/cli/    GENERATED — see above
+  reference/cli/    GENERATED, see above
 overlay/cli.yml the judgement the generator cannot derive
 tools/          the generator and the four checks
 .cache/         gitignored: locally built satl/satld, scratch space
@@ -143,7 +143,7 @@ Where the site is published, and how that host is configured, is in
 
 What is left:
 
-1. `satl-freebsd.pkg` at <https://satl.cc/download/> — the install page and the
+1. `satl-freebsd.pkg` at <https://satl.cc/download/>: the install page and the
    home page both hand readers that URL, and `satl.cc` is hosted elsewhere.
 2. The site loads Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`), so
    every reader reaches a third party. `theme.font: false` removes that and
@@ -154,13 +154,13 @@ What is left:
    SatL has more than one release worth documenting. The generated reference is
    version-stamped per page (`<!-- Source: satl 0.1.0 -->`), so the split is
    already meaningful.
-5. Drop the `GIT_DATES` shim in `mkdocs.yml` and the Makefile — it exists only
+5. Drop the `GIT_DATES` shim in `mkdocs.yml` and the Makefile; it exists only
    so a zero-commit checkout can build under `--strict`, which this repository
    has not been since its first commit.
 
 ## Licence
 
-The documentation in this repository is licensed **CC BY 4.0** — see
+The documentation in this repository is licensed **CC BY 4.0**, see
 [`LICENSE`](LICENSE).
 
 **This covers the documentation only.** SatL itself is **BSD-2-Clause**, the

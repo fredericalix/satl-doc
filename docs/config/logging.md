@@ -1,6 +1,6 @@
 # Logs
 
-`satld`'s log is not a supplement to its error messages — it is the only place a diagnosis actually comes from.
+`satld`'s log is not a supplement to its error messages; it is the only place a diagnosis actually comes from.
 The CLI shows an operator-facing summary; the log shows which `zfs`, `ifconfig`, `pfctl` or `ocijail` command ran, with its full argument list, its exit status and its stderr.
 Whenever you exercise the daemon for real, read the log.
 
@@ -18,7 +18,7 @@ sudo grep -a satld /var/log/messages | tail -50
 
 !!! danger "Always `grep -a`"
 
-    A single non-ASCII byte anywhere in `/var/log/messages` — written by any program on the host, not necessarily `satld` — makes `grep` treat the whole file as binary and print **nothing**, with exit status 1 and no explanation.
+    A single non-ASCII byte anywhere in `/var/log/messages` (written by any program on the host, not necessarily `satld`) makes `grep` treat the whole file as binary and print **nothing**, with exit status 1 and no explanation.
     That looks exactly like "the daemon logged nothing", which is the worst possible way to be misled while diagnosing.
 
     `grep -a` reads it as text regardless.
@@ -41,7 +41,7 @@ Colour is emitted only when stdout is really a terminal.
 
     The daemon prints one `satld: cannot write the log to syslog …` note to stderr and falls back to writing lines there, where `daemon(8) -S` picks them up.
     That fallback can merge lines (see [The rc.d service](service.md#do-not-remove-log-target-syslog)); it never drops them.
-    A saturated `syslogd` gets backpressure — the send is retried for up to two seconds — rather than having events dropped on the floor.
+    A saturated `syslogd` gets backpressure (the send is retried for up to two seconds) rather than having events dropped on the floor.
 
 ## Turning the volume up
 
@@ -80,11 +80,11 @@ Aug 12 19:17:29 alpha satld[68947]: 2026-08-12T19:17:29.746393Z  INFO
 | --- | --- | --- |
 | level | `INFO` | `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE` |
 | span chain | `run{…}:publish_ports{…}:` | what was happening, outermost first |
-| module | `satl_net::pf` | which subsystem said it — also the `RUST_LOG` target |
+| module | `satl_net::pf` | which subsystem said it, also the `RUST_LOG` target |
 | message + fields | `loaded pf anchor anchor=… rules=…` | prose, then machine-readable fields |
 
 The span chain is the parent chain: the outer span's fields apply to everything nested under it.
-So the line above is telling you that inside the daemon's main run loop, while publishing ports for one task, `satl-net` loaded the `satl/rdr` anchor — and it prints the exact ruleset it loaded, which is the thing you would otherwise have gone to `pfctl` for.
+So the line above is telling you that inside the daemon's main run loop, while publishing ports for one task, `satl-net` loaded the `satl/rdr` anchor, and it prints the exact ruleset it loaded, which is the thing you would otherwise have gone to `pfctl` for.
 
 ## Grep by identity, not by time
 
@@ -102,7 +102,7 @@ sudo grep -a 'session_id='     /var/log/messages # one dispatcher session
 
 Because the outer span's `node_id` applies to everything nested under it,
 `grep -a 'task_id=1kql'` returns that task's whole life *in the context* of the
-session and node that ran it — the prepare step, the jail creation, every state
+session and node that ran it, the prepare step, the jail creation, every state
 transition, and the cleanup:
 
 ```

@@ -54,12 +54,12 @@ sysctl net.inet.ip.forwarding=1       # applies now
 ```
 
 Skipping this produces the single most misleading symptom in SatL: **inbound published ports answer and containers cannot reach anything.**
-`satld` checks the sysctl at startup and warns, so the answer is in the log — but the shape of the failure looks like a container problem, not a host one.
+`satld` checks the sysctl at startup and warns, so the answer is in the log, but the shape of the failure looks like a container problem, not a host one.
 
 ## 3. pf anchors
 
 SatL owns the `satl/*` anchors and never writes a rule outside them.
-Declare them once — translation anchors before any filter rule:
+Declare them once: translation anchors before any filter rule:
 
 --8<-- "pf-anchors.md"
 
@@ -87,8 +87,8 @@ fetch https://satl.cc/download/satl-freebsd.pkg
 pkg add ./satl-freebsd.pkg          # pulls ocijail if a pkg repository is configured
 ```
 
-Two steps rather than one so you can see the file land before anything installs
-— and so you can check it, keep it, or copy it to the other nodes of a cluster
+Two steps rather than one so you can see the file land before anything installs,
+and so you can check it, keep it, or copy it to the other nodes of a cluster
 instead of downloading it three times.
 
 The package needs no repository of its own, and its post-install message recalls the host prerequisites you have just done (steps 1–4 of this page).
@@ -97,10 +97,10 @@ It installs the same four files a source build does, listed below.
 !!! tip "One package, every node"
 
     A cluster wants the same build everywhere.
-    `fetch` once, `scp` the file around, `pkg add` on each machine — mixing versions across nodes is not a configuration SatL is tested in.
+    `fetch` once, `scp` the file around, `pkg add` on each machine; mixing versions across nodes is not a configuration SatL is tested in.
 
 [Install from source](install-from-source.md) replaces this step, and nothing else on this page.
-Take it if you want a fix that is not in a release yet, or if you would rather build the `.pkg` for your own nodes — it is the only path that needs a Rust toolchain.
+Take it if you want a fix that is not in a release yet, or if you would rather build the `.pkg` for your own nodes; it is the only path that needs a Rust toolchain.
 
 Either way you now have four files installed:
 
@@ -113,13 +113,13 @@ Either way you now have four files installed:
 
 Note the last line carefully.
 
-## 6. Write `satld.toml` — do not skip this
+## 6. Write `satld.toml`: do not skip this
 
 !!! danger "The install ships a sample, not a config"
 
-    `pkg add` — like `make install` — writes `satld.toml.sample`.
+    `pkg add`, like `make install`, writes `satld.toml.sample`.
     It does **not** create `satld.toml`.
-    A missing config file is perfectly legal — the daemon runs on built-in defaults — and the built-in default for `pf_mode` is **`check`**.
+    A missing config file is perfectly legal (the daemon runs on built-in defaults), and the built-in default for `pf_mode` is **`check`**.
 
     In `check` mode `satld` generates its pf rules and syntax-checks them, and never loads one.
     So on a stock install, a published port is allocated, recorded, and shown by `satl ps` exactly as if it worked:
@@ -133,31 +133,31 @@ Note the last line carefully.
     Nothing is logged as an error, because nothing failed.
     This catches essentially every first install.
 
-Start from the sample rather than an empty file — it carries every key, with its default and the reason you would change it:
+Start from the sample rather than an empty file; it carries every key, with its default and the reason you would change it:
 
 ```sh
 cp /usr/local/etc/satl/satld.toml.sample /usr/local/etc/satl/satld.toml
 ```
 
-That copy on its own changes nothing, because every line in the sample is commented out — `pf_mode` is still `check`.
+That copy on its own changes nothing, because every line in the sample is commented out; `pf_mode` is still `check`.
 Uncomment it and set it to `enforce`.
 Stripped of its comments, that is the whole config an ordinary first install needs:
 
 --8<-- "satld-toml-minimal.md"
 
 `pf_mode = "enforce"` needs pf enabled (step 3) and the anchors declared.
-The third mode, `disabled`, generates and logs the rules and never invokes `pfctl` at all — for hosts with no pf.
+The third mode, `disabled`, generates and logs the rules and never invokes `pfctl` at all, for hosts with no pf.
 
 Every other key is optional.
 The commented sample lists them, and the [`satld.toml` reference](../reference/satld-toml.md) documents all sixteen, including two the sample does not mention.
 The ones you are most likely to need on a real host:
 
-- `zfs_root` — if your pool is not `zroot`.
-- `egress_if` — on a multi-homed host, when containers must leave through a specific interface.
+- `zfs_root`, if your pool is not `zroot`.
+- `egress_if`: on a multi-homed host, when containers must leave through a specific interface.
   Left unset, `satld` takes the interface of the default route.
-- `advertise_addr` — the `host:port` peers are told to dial.
+- `advertise_addr`: the `host:port` peers are told to dial.
   Only matters once you cluster, and it matters a lot then: unset, a node advertises whatever the default route leaves by, which on a cloud VM is usually its *public* interface.
-- `network_name` — if you will run two `satld` instances on one host.
+- `network_name`, if you will run two `satld` instances on one host.
   They must differ, or each one's startup reconciliation destroys the other's interfaces.
 
 Unknown keys are rejected at startup, so a typo fails loudly rather than being
@@ -184,7 +184,7 @@ Three optional `rc.conf` knobs:
 
     It is a correctness requirement, not a preference.
     With it, `satld` hands each log event to syslogd itself as its own datagram, so one event is one line.
-    Without it, `daemon(8)` forwards the output in chunks and syslogd rewrites the newlines inside a chunk as spaces — measured on FreeBSD 15.1, that merged 3.9 % of lines and a synthetic burst lost **more than half** its records outright.
+    Without it, `daemon(8)` forwards the output in chunks and syslogd rewrites the newlines inside a chunk as spaces; measured on FreeBSD 15.1, that merged 3.9 % of lines and a synthetic burst lost **more than half** its records outright.
     Two timestamps on one line is this bug.
 
 ## 8. Read the startup lines
@@ -198,7 +198,7 @@ grep -a satld /var/log/messages | tail -40
 
 !!! tip "Always `grep -a`"
 
-    One non-ASCII byte anywhere in `/var/log/messages` — from any program on the host — makes `grep` treat the whole file as binary and print **nothing**, with exit status 1 and no explanation.
+    One non-ASCII byte anywhere in `/var/log/messages`, from any program on the host, makes `grep` treat the whole file as binary and print **nothing**, with exit status 1 and no explanation.
     That looks exactly like "the daemon logged nothing", which is the worst possible way to be misled.
 
 A healthy first start, on this machine, verbatim:
@@ -226,7 +226,7 @@ INFO satl_api::server: docker api listening on unix socket socket=/var/run/satl.
 ```
 
 That block is the whole preflight.
-Read it as a checklist — every degradation you can still fix appears here, once, and nowhere else:
+Read it as a checklist; every degradation you can still fix appears here, once, and nowhere else:
 
 | Line | Meaning |
 | --- | --- |
@@ -238,9 +238,9 @@ Read it as a checklist — every degradation you can still fix appears here, onc
 | `cluster state ready … is_leader=true` | this node is a working cluster of one. |
 | `docker api listening on unix socket` | the socket is up; `satl` will answer. |
 
-??? note "`cannot measure this node's underlay` — only matters for overlays"
+??? note "`cannot measure this node's underlay`, only matters for overlays"
 
-    On a host whose egress interface carries a `/32` — common on cloud VMs — you
+    On a host whose egress interface carries a `/32`, common on cloud VMs, you
     will see this at `ERROR` level:
 
     ```
@@ -250,7 +250,7 @@ Read it as a checklist — every degradation you can still fix appears here, onc
           to an address on this underlay that nothing answers on
     ```
 
-    `if_vxlan` demands a default remote for unknown traffic, and SatL insists it be an address that is *not* a real peer — a real one silently masks a missing forwarding-table entry, which is exactly how an overlay bug survives a two-node test.
+    `if_vxlan` demands a default remote for unknown traffic, and SatL insists it be an address that is *not* a real peer; a real one silently masks a missing forwarding-table entry, which is exactly how an overlay bug survives a two-node test.
     Nothing else is affected: containers, published ports and bridge networks all work.
     Set `overlay_blackhole` when you start using overlay networks.
 
@@ -287,4 +287,4 @@ docker -H unix:///var/run/satl.sock version
 
 Next: [Your first container](first-container.md).
 
-Its middle step builds a FreeBSD image, which needs a base image to build `FROM` — [A local registry](registry.md) is the page that puts one on this node, and it is the missing piece behind every `127.0.0.1:5000/satl-test/...` reference on this site.
+Its middle step builds a FreeBSD image, which needs a base image to build `FROM`; [A local registry](registry.md) is the page that puts one on this node, and it is the missing piece behind every `127.0.0.1:5000/satl-test/...` reference on this site.

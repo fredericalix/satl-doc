@@ -44,7 +44,7 @@ satl service inspect <service>                 # constraints, reservations, imag
 
 **Reading.**
 The counts are nodes examined since the last successful placement, so "3 nodes" on a three-node cluster means every node was tried and rejected.
-`not available for new tasks` counts drained and paused nodes as well as down ones — a node you paused an hour ago is still refusing work.
+`not available for new tasks` counts drained and paused nodes as well as down ones; a node you paused an hour ago is still refusing work.
 
 **Fix.**
 Whichever the explanation names: relax the constraint, return a node to `--availability active`, lower the reservation, or push an image built for a platform the cluster runs.
@@ -53,14 +53,14 @@ Whichever the explanation names: relax the constraint, return a node to `--avail
 
     Placement runs a fixed filter pipeline per task, in order: availability, resource reservations, constraints, image platform, host-mode ports, and the per-node replica cap.
     A node that passes every filter clears the counters, so the explanation always describes the nodes examined since the last success rather than an all-time tally.
-    Only *reservations* participate — `--memory`/`--cpus` are limits, enforced on the node by `rctl(8)`, and never influence where a task lands.
+    Only *reservations* participate; `--memory`/`--cpus` are limits, enforced on the node by `rctl(8)`, and never influence where a task lands.
 
     A task that no node accepts is not failed: it stays `Pending` and is retried on every pass, so fixing the cause is enough to make it run.
     Nothing has to be recreated.
 
 ## The task is `REJECTED` and names the linuxulator or an init system { #linux-image-rejected }
 
-**Symptom** — one of
+**Symptom**: one of
 
 ```
 container '1kql…': image runs "/sbin/init" as PID 1; FreeBSD jails provide no
@@ -90,10 +90,10 @@ sudo grep -a 'linuxulator' /var/log/messages | tail -5
 | --- | --- |
 | `sysctl: unknown oid 'compat.linux.osrelease'` | the linuxulator modules are not loaded on this node |
 | `compat.linux.osrelease: 5.15.0`, `kern.elf64.fallback_brand: 3` | the host is ready; the rejection was about the entrypoint |
-| `kern.elf64.fallback_brand: -1` | glibc images may run and **musl/static ones will not** — Alpine's busybox is an unbranded SYSV ELF |
+| `kern.elf64.fallback_brand: -1` | glibc images may run and **musl/static ones will not**; Alpine's busybox is an unbranded SYSV ELF |
 
 **Fix.**
-For the host, `linux_enable="YES"` in `rc.conf` plus `service linux start` — that loads `linux.ko`, `linux64.ko`, `linprocfs`, `linsysfs`, `fdescfs`, `pty` and sets the fallback brand.
+For the host, `linux_enable="YES"` in `rc.conf` plus `service linux start`, that loads `linux.ko`, `linux64.ko`, `linprocfs`, `linsysfs`, `fdescfs`, `pty` and sets the fallback brand.
 For the image, use one whose entrypoint is a plain foreground process.
 
 Why an init entrypoint is refused before it runs rather than allowed to fail,
@@ -120,11 +120,11 @@ Three shapes, distinguishable from `dmesg`:
 | --- | --- |
 | `linux: … unsupported prctl option …` | a Linux image using syscalls the emulation does not implement |
 | nothing anywhere, image expects `/sys/fs/cgroup` or `/proc/cgroups` | there is no cgroup filesystem; the application decided it could not run |
-| the daemon log carries an `ocijail` command line and its stderr | a real runtime failure — read the argv and the stderr, they are both there |
+| the daemon log carries an `ocijail` command line and its stderr | a real runtime failure; read the argv and the stderr, they are both there |
 
 **Fix.**
 Depends entirely on the third column.
-For a Linux image, the usual causes are all on one list — [where the emulation stops](../use/linux-containers.md#where-the-emulation-stops) — and the fastest way to name the missing piece is `sysctl compat.linux.debug=3`, which logs each unimplemented syscall once.
+For a Linux image, the usual causes are all on one list, [where the emulation stops](../use/linux-containers.md#where-the-emulation-stops), and the fastest way to name the missing piece is `sysctl compat.linux.debug=3`, which logs each unimplemented syscall once.
 An Alpine image misbehaving is worth retesting against a glibc image before blaming SatL: musl exercises different syscall paths.
 
 ## `--memory` and `--cpus` do nothing { #limits-not-enforced }
@@ -143,9 +143,9 @@ rctl -h jail:<container id>
 
 | Outcome | Meaning |
 | --- | --- |
-| `kern.racct.enable: 0` | accounting is off; the limits were accepted and enforced by nothing — the reason is recorded in the task's status message and in the [startup banner](daemon.md#degraded) |
+| `kern.racct.enable: 0` | accounting is off; the limits were accepted and enforced by nothing; the reason is recorded in the task's status message and in the [startup banner](daemon.md#degraded) |
 | `kern.racct.enable: 1`, `rctl` prints rules | enforcement is live; read the next paragraph before calling it broken |
-| `kern.racct.enable: 1`, `rctl` prints nothing | the rules were not installed — a real defect; collect [what Getting help asks for](getting-help.md) |
+| `kern.racct.enable: 1`, `rctl` prints nothing | the rules were not installed, a real defect; collect [what Getting help asks for](getting-help.md) |
 
 **Fix**
 
@@ -162,7 +162,7 @@ It is a boot-time tunable: it cannot be switched on at runtime.
 
     | Flag | Rule | Behaviour |
     | --- | --- | --- |
-    | `--memory` | `jail:<id>:memoryuse:sigkill=<bytes>` | the process is **killed** when the jail's resident set exceeds the cap — the closest equivalent to a Linux OOM kill. `memoryuse:deny` would be silently useless: RSS is not a deniable resource in the kernel, yet `rctl` accepts the rule (measured — a 64 MB `deny` cap allocated 200 MB without complaint) |
+    | `--memory` | `jail:<id>:memoryuse:sigkill=<bytes>` | the process is **killed** when the jail's resident set exceeds the cap, the closest equivalent to a Linux OOM kill. `memoryuse:deny` would be silently useless: RSS is not a deniable resource in the kernel, yet `rctl` accepts the rule (measured: a 64 MB `deny` cap allocated 200 MB without complaint) |
     | `--cpus` | `jail:<id>:pcpu:deny=<percent>` | the scheduler **throttles** the jail toward the cap. Accounting is a decaying average, so the cap is approached rather than imposed instantly: a fixed CPU-bound workload measured 4.4 s unlimited and 10.5 s at `pcpu:deny=20`, converging further on longer runs |
 
     So "it went over the cap briefly" is expected for `--cpus` and unexpected for `--memory`.
@@ -183,11 +183,11 @@ started again: a SatL task is one-shot, so create a new container instead
 
 **Reading.**
 Not a bug and not a transient state.
-A container here **is** a task, and a task is one-shot and immutable: re-running it would mean a new task, which means a new container ID — something Docker's API has no way to express.
+A container here **is** a task, and a task is one-shot and immutable: re-running it would mean a new task, which means a new container ID; something Docker's API has no way to express.
 `start` therefore only works on a container that was created and never started.
 
 **Fix.**
-`satl run` again, or — if you wanted the thing to come back on its own — create it as a service with a restart policy.
+`satl run` again, or, if you wanted the thing to come back on its own, create it as a service with a restart policy.
 See [Differences from Docker](../docker-differences.md).
 
 ## `… is not supported by SatL: …` on create { #rejected-options }
@@ -220,7 +220,7 @@ The rejected set is fixed and each entry names its reason:
 
 **Fix.**
 Remove the flag, or use the alternative the message names.
-There is no mode in which these are accepted and ignored, and that is deliberate: **a half-honoured isolation flag is a security trap** — a caller who asked for `--security-opt` and got a 200 would reasonably believe something was enforced.
+There is no mode in which these are accepted and ignored, and that is deliberate: **a half-honoured isolation flag is a security trap**; a caller who asked for `--security-opt` and got a 200 would reasonably believe something was enforced.
 
 ## The container's dataset is still there a minute after `satl rm` { #dataset-busy }
 
@@ -249,7 +249,7 @@ jls -d -h name dying | grep <task id>
 | --- | --- |
 | the task id appears under `jls -d -h name dying` | **normal.** Its prison is still dying; the dataset will go when it does |
 | a deferral line, then a reclamation line for the same `task_id` | **normal, already resolved.** Expect roughly 60–100 s end to end |
-| a deferral line and no reclamation line minutes later, with no dying prison | a different problem — check `mount -v \| grep <task id>` for vnodes and report it |
+| a deferral line and no reclamation line minutes later, with no dying prison | a different problem; check `mount -v \| grep <task id>` for vnodes and report it |
 
 **Fix.**
 Wait.
@@ -259,11 +259,11 @@ No restart, no intervention.
 ??? note "Why a rootfs stays busy, and why nothing shows a holder"
 
     `jail_remove(2)` does not destroy a prison: it moves it to `DYING` and it stays there until its last reference goes.
-    A prison holds its root directory as an active vnode **inside the container's own ZFS filesystem**, so `unmount(2)` returns `EBUSY` — and `zfs destroy` unmounts before it destroys, which is why the message says *cannot unmount* rather than *cannot destroy*.
+    A prison holds its root directory as an active vnode **inside the container's own ZFS filesystem**, so `unmount(2)` returns `EBUSY`, and `zfs destroy` unmounts before it destroys, which is why the message says *cannot unmount* rather than *cannot destroy*.
     It is a VFS refusal, not a ZFS one.
 
     That reference belongs to no process and no file, so `fstat -f <rootfs>` reports **zero** open files, `procstat -a -f` finds no process, `mount -p` shows no submount, and `ps -axo jid` shows nothing in the jail.
-    Only `jls -d -h name dying` sees it — and it has to be asked exactly that way: plain `jls -d` lists live jails too, so "`jls -d` printed something" means nothing at all.
+    Only `jls -d -h name dying` sees it, and it has to be asked exactly that way: plain `jls -d` lists live jails too, so "`jls -d` printed something" means nothing at all.
 
     **What takes the time is TCP, not the jail.**
     A VNET prison cannot be dismantled while its network stack still holds protocol control blocks, and a TCP connection outlives the process that owned it.
@@ -299,7 +299,7 @@ satl service ps <service>
 | `health: starting` for longer than you expect | correct: the first probe runs one `interval` **after** the container starts, never at t=0 |
 | `Health check exceeded timeout (2s)` in the log | the probe outlived its timeout; recorded as exit code `-1`, exactly as Docker words it |
 | repeated non-zero exits, then the task fails | `retries` **consecutive** failures outside the start period end the task |
-| `State.Health` missing entirely | you asked a node that is not running the task — health is node-local and never enters the store |
+| `State.Health` missing entirely | you asked a node that is not running the task; health is node-local and never enters the store |
 
 **Fix.**
 Lengthen `start_period` for a slow starter, or fix the probe.
@@ -323,7 +323,7 @@ What you cannot do is leave it unhealthy and running.
 
 ## The image will not pull { #pull-fails }
 
-**Symptom** — one of
+**Symptom**: one of
 
 ```
 Error response from daemon: registry 127.0.0.1:5000: GET manifest 15.1 for
@@ -351,11 +351,11 @@ sudo grep -a -E 'registry|manifest|platform' /var/log/messages | tail -20
 **Reading.**
 The three shapes are unrelated.
 
-`error sending request for url (…)` is a transport failure — nothing answered, or answered something that is not HTTP(S).
-Read the URL it prints: `http://127.0.0.1:5000/…` means no registry is running on this node ([A local registry](../start/registry.md) is how one gets there), and an `https://` URL where you configured a plain-HTTP registry means SatL did what it always does off loopback — `localhost`, `127.0.0.1` and `[::1]` are the only hosts contacted without TLS, on any port, and there is no insecure-registry override to turn that off.
+`error sending request for url (…)` is a transport failure; nothing answered, or answered something that is not HTTP(S).
+Read the URL it prints: `http://127.0.0.1:5000/…` means no registry is running on this node ([A local registry](../start/registry.md) is how one gets there), and an `https://` URL where you configured a plain-HTTP registry means SatL did what it always does off loopback; `localhost`, `127.0.0.1` and `[::1]` are the only hosts contacted without TLS, on any port, and there is no insecure-registry override to turn that off.
 
 A platform list that contains nothing this node can run is an image problem, and the message prints exactly what the registry offered.
-An auth failure quotes the challenge it got — including for a repository that does not exist, which Docker Hub answers with `401` rather than `404`, so `authentication failed for library/<something>` usually means a bare image name normalised into `docker.io/library/` where nothing lives.
+An auth failure quotes the challenge it got, including for a repository that does not exist, which Docker Hub answers with `401` rather than `404`, so `authentication failed for library/<something>` usually means a bare image name normalised into `docker.io/library/` where nothing lives.
 
 **Fix.**
 Start the registry (or give an off-loopback one TLS), push an image built for `freebsd/amd64` or `linux/amd64`, or fix the credentials.
@@ -363,5 +363,5 @@ Platform selection prefers `freebsd/amd64|arm64` from a manifest list and falls 
 
 !!! danger "On a cluster this can look like nothing at all"
 
-    A task whose pull fails on a *transport* error is retried every second, indefinitely, and sits in `PREPARING` — no failure, no restart, just a service that reports fewer replicas than it wants.
+    A task whose pull fails on a *transport* error is retried every second, indefinitely, and sits in `PREPARING`; no failure, no restart, just a service that reports fewer replicas than it wants.
     [Why a missing image on one node is quiet](../use/images.md#image-locality) is the whole mechanism.

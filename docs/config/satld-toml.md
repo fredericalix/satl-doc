@@ -12,7 +12,7 @@ That is worth knowing because it changes how you should read the shipped [`satld
 Uncomment what you mean to change and leave the rest alone.
 
 This page walks the file in the order you actually decide things.
-For the key-by-key detail — types, exact defaults, what each one accepts — go to the [`satld.toml` reference](../reference/satld-toml.md).
+For the key-by-key detail (types, exact defaults, what each one accepts), go to the [`satld.toml` reference](../reference/satld-toml.md).
 
 ## A typo is a startup failure, not a silent no-op
 
@@ -33,7 +33,7 @@ Caused by:
 
 This is deliberate.
 A configuration key that is accepted and ignored is the worst failure mode a daemon has: the operator believes a setting is in force, the daemon behaves as if it were not, and nothing anywhere says so.
-Values are validated the same way — an unparseable `network_pool`, a `pf_mode` outside the three it knows, a `listen_addr` without a port are all refusals at load time with the offending key named.
+Values are validated the same way: an unparseable `network_pool`, a `pf_mode` outside the three it knows, a `listen_addr` without a port are all refusals at load time with the offending key named.
 
 The corollary is that **the startup banner is the authority on what took effect**, not the file.
 It is the first line `satld` writes, and it prints the effective configuration after defaulting:
@@ -48,7 +48,7 @@ INFO satld: starting satld version="0.1.0" git_commit="unknown"
 ```
 
 `config_source="defaults (config file absent)"` there means the file was not
-found at all — which, if you just wrote one, is the first thing to check.
+found at all, which, if you just wrote one, is the first thing to check.
 
 ## Storage, first, because it is the one that refuses to start
 
@@ -63,10 +63,10 @@ Create it before the first start, with the mountpoint SatL expects:
 zfs create -o mountpoint=/var/db/satl zroot/satl
 ```
 
-Everything below it — `raft`, `images`, `layers`, `containers`, `volumes` — is created by the daemon on first start.
+Everything below it (`raft`, `images`, `layers`, `containers`, `volumes`) is created by the daemon on first start.
 Change `zfs_root` only if your pool is not called `zroot`, or if you deliberately want SatL's data on another pool.
 
-`state_dir` (default `/var/db/satl`) is the *filesystem path* side of the same thing: where the daemon writes everything that is not a dataset — certificates, the local task database, OCI bundles, container logs, IPAM state.
+`state_dir` (default `/var/db/satl`) is the *filesystem path* side of the same thing: where the daemon writes everything that is not a dataset: certificates, the local task database, OCI bundles, container logs, IPAM state.
 It should be the mountpoint of `zfs_root`, and `satld` warns at startup when the two disagree.
 Setting one without the other is almost always a mistake.
 What lives there is catalogued in [Node state on disk](state.md).
@@ -99,7 +99,7 @@ It is a unix socket, mode 0660, owned by root and by the group in `socket_group`
     A future package will create that group and make it the default; today you
     create it yourself.
 
-`node_name` (default: the system hostname) is the name this node reports in cluster output — the `HOSTNAME` column of `satl node ls` — and it is also the name its Raft peer carries.
+`node_name` (default: the system hostname) is the name this node reports in cluster output, the `HOSTNAME` column of `satl node ls`, and it is also the name its Raft peer carries.
 Set it if the hostname is not what you want other operators to read.
 
 ## pf: the setting that decides whether published ports work
@@ -114,7 +114,7 @@ Set it if the hostname is not what you want other operators to read.
 
 !!! warning "The default is `check`, which redirects nothing"
 
-    With `pf_mode = "check"` — the built-in default — a published port is allocated, recorded on the task, and shown by `satl ps` and `satl service ls`.
+    With `pf_mode = "check"`, the built-in default, a published port is allocated, recorded on the task, and shown by `satl ps` and `satl service ls`.
     **Nothing on the host redirects it.**
     Connections to that port are refused, and the CLI gives you no hint, because from the control plane's point of view everything worked.
 
@@ -125,7 +125,7 @@ Set it if the hostname is not what you want other operators to read.
     It is not a working configuration for a node that serves traffic.
 
 `enforce` additionally requires pf to be enabled on the host and SatL's anchors to be declared in `/etc/pf.conf`.
-SatL owns `satl/nat` and `satl/rdr`, writes the whole anchor atomically on every change, and refuses in code to load into any anchor outside `satl/*` — so declaring them costs you nothing you had.
+SatL owns `satl/nat` and `satl/rdr`, writes the whole anchor atomically on every change, and refuses in code to load into any anchor outside `satl/*`, so declaring them costs you nothing you had.
 See [Publishing ports](../use/publishing-ports.md) for the `/etc/pf.conf` lines and the host prerequisites.
 
 Use `disabled` on a host without pf, accepting that such a node can run
@@ -141,12 +141,12 @@ That third job is the trap.
 !!! danger "Two `satld` instances on one host must not share `network_name`"
 
     On startup, each daemon enumerates its interface group and destroys every interface in it that it cannot account for.
-    That sweep is what makes SatL recover from an interrupted teardown — a leaked epair from a jail that died mid-removal is found and destroyed rather than accumulating.
+    That sweep is what makes SatL recover from an interrupted teardown; a leaked epair from a jail that died mid-removal is found and destroyed rather than accumulating.
 
     Give two daemons on one host the same `network_name` and each one's startup reconciliation destroys the other's epairs and bridges.
     Both lose their containers' networking, at every restart, and the log of each will show a sweep that did exactly what it was told.
 
-    If you run a second instance — a test daemon beside a real one — give it its
+    If you run a second instance, a test daemon beside a real one, give it its
     own `network_name`, and remember it changes the bridge interface name too.
 
 The name is capped at 14 characters, because the bridge interface derived from it has to fit FreeBSD's `IFNAMSIZ`.
@@ -164,30 +164,30 @@ INFO satld::node: egress interface taken from the default route
      (set egress_if to override) egress_if=ice0
 ```
 
-Set it explicitly on a multi-homed node — when containers must leave through a private interface rather than the public one.
+Set it explicitly on a multi-homed node, when containers must leave through a private interface rather than the public one.
 With no egress interface at all, no NAT rule is generated and the failure is asymmetric enough to be genuinely confusing: published ports still answer, while the container itself cannot reach a registry or a DNS server.
 `satld` warns loudly about that at startup.
 
 ## Cluster addresses
 
-`listen_addr` (default `0.0.0.0:2377`) is where the internal, mutually authenticated gRPC server binds — Raft, the control API, the dispatcher and the node CA all share it.
+`listen_addr` (default `0.0.0.0:2377`) is where the internal, mutually authenticated gRPC server binds; Raft, the control API, the dispatcher and the node CA all share it.
 Every node listens, worker or manager: a manager needs it for its peers, and a single-node cluster needs it for the nodes that will join it later.
 
 `satld` also binds **the next port up** (2378 by default) for the unauthenticated node-CA bootstrap endpoint.
 A node that has never joined has no certificate to present, so it cannot complete the mTLS handshake on 2377; it fetches the root CA and submits its signing request on 2378 instead, and pins what it receives against the digest baked into its join token.
 Both ports must be reachable from every other node.
-An operator only ever types the first one — `satl swarm join host:2377` derives the second itself.
+An operator only ever types the first one; `satl swarm join host:2377` derives the second itself.
 
 `advertise_addr` is the `host:port` this node tells its peers to dial.
 Unset, it is derived from the address of the interface carrying the default route, with `listen_addr`'s port, and the banner says so (`advertise_addr="(from the default route)"`, followed by a resolved line).
-Set it explicitly whenever the address other nodes must use is not the one the default route leaves by — a dedicated cluster network, for example.
+Set it explicitly whenever the address other nodes must use is not the one the default route leaves by, a dedicated cluster network, for example.
 A bare address is accepted and gets `listen_addr`'s port, so `advertise_addr = "10.2.0.4"` means `10.2.0.4:2377`.
 
 ??? note "What happens with no advertise address at all"
 
     The node still starts and still joins.
     The leader substitutes the address it observes the node connecting from, which is usually right and is never authoritative.
-    The one place it matters beyond Raft is the VXLAN overlay: a node's tunnel endpoint is taken from what the node says about itself first, and only falls back to the observed control-plane address — which equals the underlay only for as long as agents happen to reach their managers over the underlay.
+    The one place it matters beyond Raft is the VXLAN overlay: a node's tunnel endpoint is taken from what the node says about itself first, and only falls back to the observed control-plane address, which equals the underlay only for as long as agents happen to reach their managers over the underlay.
     A tunnel endpoint taken from that fallback is logged with a warning, because a wrong one does not fail loudly: the tunnel comes up, reports `RUNNING`, and carries nothing.
 
 ## The keys you will probably never set
@@ -203,7 +203,7 @@ Values under an hour draw a loud startup warning and values under a minute are r
 The production setting is to omit the key entirely, which means 90 days.
 
 `keyring_rotate_after_secs` and `keyring_phase_settle_secs` (defaults `43200` and `60`, plain seconds) set the cadence of the encrypted-overlay keyring that [`--opt encrypted`](../use/networks.md#encrypted) networks run on: how old a network's keyring may get before the leader rotates it, and how long the settle between the rotation's phases lasts.
-**They exist to test key rotation** — shorten them and a test watches a full rotation in minutes instead of twelve hours.
+**They exist to test key rotation**: shorten them and a test watches a full rotation in minutes instead of twelve hours.
 A zero rotation interval, or a settle time that does not fit below it, is refused at load, and any non-default value draws a loud startup warning.
 Never set them on a real cluster.
 
@@ -213,4 +213,4 @@ All of them are in the [reference](../reference/satld-toml.md), which is checked
 ## Changing it
 
 There is no reload.
-`satld` reads the file once, at startup, so a change takes effect on the next `service satld restart` — which, as [the next page](service.md) explains, is much less disruptive than it sounds: running containers are deliberately left alone and re-adopted.
+`satld` reads the file once, at startup, so a change takes effect on the next `service satld restart`, which, as [the next page](service.md) explains, is much less disruptive than it sounds: running containers are deliberately left alone and re-adopted.

@@ -23,7 +23,7 @@ sudo grep -a 'starting satld' /var/log/messages | tail -1
 ```
 
 The startup banner is one line and carries the effective configuration: version, git commit, config file and whether it was actually read, socket path, state dir, ZFS root, node name, `pf_mode`, listen and advertise addresses, and the certificate validity in force.
-It is the single most useful line in a report, and it is the one most likely to have been rotated away — read [the archives](reading-the-log.md#rotation) if it is not in the live file.
+It is the single most useful line in a report, and it is the one most likely to have been rotated away; read [the archives](reading-the-log.md#rotation) if it is not in the live file.
 
 ### 2. What the daemon said
 
@@ -86,7 +86,7 @@ satl network ls
 
 !!! warning "Say which node each command was run on"
 
-    A worker answers Docker's `This node is not a swarm manager.` for most of these, and a manager reports **its own** view of node-local things — health, a network's gateway.
+    A worker answers Docker's `This node is not a swarm manager.` for most of these, and a manager reports **its own** view of node-local things: health, a network's gateway.
     "Which node" is part of the data.
 
     And do not report the `MANAGER STATUS` column as evidence of who leads: it is written when the cluster forms and never refreshed ([why](cluster.md#stale-manager-status)).
@@ -102,7 +102,7 @@ If the problem needs a cluster, say how many nodes and which roles; if it needs 
 | Never | Why |
 | --- | --- |
 | a **join token** | it is a credential. Redact everything after `SATL-1-` |
-| the contents of `<state_dir>/raft/dek` | it is the key that encrypts the Raft log and snapshots at rest — treat it like a private key |
+| the contents of `<state_dir>/raft/dek` | it is the key that encrypts the Raft log and snapshots at rest; treat it like a private key |
 | private keys under `<state_dir>/certs` | the certificates themselves are fine; the keys are not |
 | secret or config **payloads** | names are fine and appear in the log by design; payloads never do |
 
@@ -110,7 +110,7 @@ If the problem needs a cluster, say how many nodes and which roles; if it needs 
 
     Secret *names* appear in the daemon log (`materialized dependency payload`, `secret assigned/withdrawn`).
     A payload byte sequence must never appear there.
-    If you find one, that is the report — say so plainly, and do not attach the log to a public tracker.
+    If you find one, that is the report; say so plainly, and do not attach the log to a public tracker.
 
 ## Things that are expected and are not bugs
 
@@ -133,11 +133,11 @@ All of these are documented behaviour:
 
 Report these on sight, with the line that shows them:
 
-- **two timestamps, or two `{`, on one log line** — one event is one line by
+- **two timestamps, or two `{`, on one log line**: one event is one line by
   construction ([why](reading-the-log.md#merged-lines));
-- **`M-^` escape sequences** in a log line — a message escaped the ASCII-only
+- **`M-^` escape sequences** in a log line; a message escaped the ASCII-only
   rule;
-- **ANSI colour escapes** in a log *file* — colour is emitted only to a terminal;
+- **ANSI colour escapes** in a log *file*; colour is emitted only to a terminal;
 - **a background loop's span nested under another span**, or the same span twice
   in one chain ([why](reading-the-log.md#span-chain));
 - **a secret payload** anywhere in the log;
@@ -148,10 +148,10 @@ Report these on sight, with the line that shows them:
 
 Issues go to the SatL repository:
 <https://github.com/fredericalix/satl/issues>. A fix to this documentation goes
-to <https://github.com/fredericalix/satl-doc> — every page has an edit link in
+to <https://github.com/fredericalix/satl-doc>; every page has an edit link in
 its top-right corner, which is the shortest path for a wrong sentence.
 
 SatL is at 0.1.0-beta and the gaps people actually walk into are the ones worth
-closing first, so a report of the shape described above is genuinely useful — and
+closing first, so a report of the shape described above is genuinely useful, and
 a report saying "this worked, on this hardware, with this workload" is worth more
 than you would think.

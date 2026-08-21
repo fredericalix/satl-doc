@@ -1,6 +1,6 @@
 # TLS, joins and certificates
 
-Every internal connection in SatL — Raft, the dispatcher, the control API, the NodeCA — is mutual TLS against the cluster's own root.
+Every internal connection in SatL (Raft, the dispatcher, the control API, the NodeCA) is mutual TLS against the cluster's own root.
 Joins are pinned to that root by the join token.
 So the failures on this page are all the same shape: something presents a certificate the other end will not accept, and the symptom is a connection that never establishes.
 
@@ -37,7 +37,7 @@ satl ca                                 # the root(s) this cluster currently tru
 
 | Outcome | Meaning |
 | --- | --- |
-| the token you used differs from the one just printed | the token is stale — almost always a root CA rotation since it was issued |
+| the token you used differs from the one just printed | the token is stale, almost always a root CA rotation since it was issued |
 | `satl ca` prints **two** certificates | a rotation is **in progress**; tokens rotate at its start *and* at its completion |
 | the token matches and the join still fails | you are talking to a different cluster than you think, or something is intercepting the bootstrap connection |
 
@@ -47,7 +47,7 @@ Nothing has to be reset on the joining node for this error alone.
 
 ??? note "Why the digest is pinned, and why a rotation voids old tokens"
 
-    The first contact a joiner makes is over the **unauthenticated** bootstrap listener on `2378` — it has no certificate yet, so it cannot use the mTLS port.
+    The first contact a joiner makes is over the **unauthenticated** bootstrap listener on `2378`; it has no certificate yet, so it cannot use the mTLS port.
     What makes that safe is that the token carries a digest of the whole trust bundle: the joiner downloads the bundle, hashes it, and refuses to proceed unless it matches.
     A man in the middle can replace or append a root certificate and the digest catches it.
 
@@ -60,7 +60,7 @@ Nothing has to be reset on the joining node for this error alone.
 
 ## `malformed join token: …` { #malformed-token }
 
-**Symptom** — one of
+**Symptom**: one of
 
 ```
 malformed join token: expected 4 dash-separated fields (SATL-1-<digest>-<secret>), found 3
@@ -76,7 +76,7 @@ None of these ever reached the network.
 
 **Fix.**
 Re-copy it.
-`satl swarm join-token worker` prints a ready-to-paste `satl swarm join …` invitation — use that rather than reassembling the command by hand.
+`satl swarm join-token worker` prints a ready-to-paste `satl swarm join …` invitation; use that rather than reassembling the command by hand.
 
 !!! warning "A join token is a credential"
 
@@ -126,7 +126,7 @@ Its containers were long since rescheduled elsewhere.
 ## Everything fails at once, some time after nothing changed { #expired-certs }
 
 **Symptom.**
-The cluster coasts along fine — reads work, `satl node ls` says `Ready` everywhere — and then, all at once, every session re-establishment fails and keeps failing:
+The cluster coasts along fine (reads work, `satl node ls` says `Ready` everywhere), and then, all at once, every session re-establishment fails and keeps failing:
 
 ```
 WARN satl_dispatcher::agent: agent session ended error=dispatcher rpc Session
@@ -157,9 +157,9 @@ sudo grep -a -E 'certificate renewed|issued node certificate|renewal failed' \
 
 | Outcome | Meaning |
 | --- | --- |
-| the presented `not_after` is in the past, and the log shows **no** recent renewal | renewal is failing — grep for `certificate renewal failed; will retry` and read its reason (CA material missing from the store, disk full) |
+| the presented `not_after` is in the past, and the log shows **no** recent renewal | renewal is failing; grep for `certificate renewal failed; will retry` and read its reason (CA material missing from the store, disk full) |
 | the presented `not_after` is in the past while the log is **still logging successful renewals** | the process is presenting a stale certificate: the disk is fresh and the live TLS configuration is not. **The fix is a daemon restart** |
-| `satl node ls` still shows every node `Ready` with the old `Leader` | expected in this failure mode. It reads the last replicated store state, which can no longer change — do not trust it here |
+| `satl node ls` still shows every node `Ready` with the old `Leader` | expected in this failure mode. It reads the last replicated store state, which can no longer change; do not trust it here |
 
 **Fix.**
 Restart the daemon on the affected node if it is presenting something other than what is on its disk.
@@ -167,12 +167,12 @@ Otherwise fix what the renewal error names; the certificate stays valid for a lo
 
 !!! note "The treacherous part is that nothing breaks at expiry"
 
-    Established connections never re-check certificates, so an expired identity costs nothing until the first reconnect — a network blip, a daemon restart on a peer, an idle connection cycling.
+    Established connections never re-check certificates, so an expired identity costs nothing until the first reconnect: a network blip, a daemon restart on a peer, an idle connection cycling.
     Then everything fails at once, and it looks like a network event rather than a certificate that expired quietly twenty minutes earlier.
 
 ??? note "How renewal is supposed to work"
 
-    Every node's certificate is renewed automatically at a random point in 50–80 % of its validity — 90 days by default, so roughly a 50–70 day event — re-issued from the cluster root held in the Raft store, written to `<state_dir>/certs`, and **swapped into the live TLS configuration in the same breath**.
+    Every node's certificate is renewed automatically at a random point in 50–80 % of its validity (90 days by default, so roughly a 50–70 day event), re-issued from the cluster root held in the Raft store, written to `<state_dir>/certs`, and **swapped into the live TLS configuration in the same breath**.
     No restart, ever: listeners and outbound channels resolve their certificate per handshake, so the very next connection presents the new one.
     Role changes ride the same mechanism, since the role *is* the certificate's OU.
 
@@ -186,12 +186,12 @@ Otherwise fix what the renewal error names; the certificate stays valid for a lo
 
     Two things are expected and are not bugs: established connections keep their
     old identity until they reconnect, and the on-disk and presented `not_after`
-    match only after that swap line — between the disk write and the swap there
+    match only after that swap line; between the disk write and the swap there
     is no observable window.
 
 ## `node … has been removed from the cluster` { #removed-member }
 
-**Symptom** — one of
+**Symptom**: one of
 
 ```
 node 2cd3… has been removed from the cluster: its certificate is blacklisted
@@ -265,7 +265,7 @@ The reconciler stops waiting on the next tick.
     The two operator levers are `satl node rm --force` and rejoining a node that missed the rotation.
 
     And note the trap on the other side: **a node that stays down through the
-    whole rotation cannot reconnect afterwards** — its certificate chains to a
+    whole rotation cannot reconnect afterwards**; its certificate chains to a
     root nobody trusts any more, and it shows up as
     [`refused an internal TLS connection`](#refused-tls).
 
@@ -281,13 +281,13 @@ node's cluster state.
 ```
 
 The reason varies: `it runs N service(s)`, `it holds N task(s)`,
-`it is a manager of a N-node cluster`, `it holds N secret(s)` — and on a worker,
+`it is a manager of a N-node cluster`, `it holds N secret(s)`, and on a worker,
 `it runs N task(s) of its current cluster`.
 
 **Reading.**
 Every fresh SatL node self-initialises a single-node cluster, so "this node is already a cluster" is the normal state of a node you have never touched and is *not* what this refusal is about.
 The check is narrower: it refuses only when the node holds **state a join would destroy**.
-The default cluster object and the node's own node object do not count — they are what a self-initialised node always has.
+The default cluster object and the node's own node object do not count; they are what a self-initialised node always has.
 
 | Node | May join if |
 | --- | --- |
@@ -297,9 +297,9 @@ The default cluster object and the node's own node object do not count — they 
 Two neighbouring refusals are worth recognising, because they read similarly and
 mean something else:
 
-- `This node is already part of a swarm. Use "docker swarm leave" to leave this swarm and try again.` — that is **`swarm init` on a worker**, Docker's own wording.
+- `This node is already part of a swarm. Use "docker swarm leave" to leave this swarm and try again.`: that is **`swarm init` on a worker**, Docker's own wording.
   On a manager, `init` stays an idempotent success.
-- `this node is one of 3 managers: removing it would need a quorum-safe membership change. Demote it from another manager first (\`satl node update --role worker\`), or pass force to leave anyway.` — that is `swarm leave` on a manager of a multi-member Raft group.
+- `this node is one of 3 managers: removing it would need a quorum-safe membership change. Demote it from another manager first (\`satl node update --role worker\`), or pass force to leave anyway.`; that is `swarm leave` on a manager of a multi-member Raft group.
   A worker leaves without `--force`, exactly as Docker's does.
 
 **Fix.**

@@ -1,7 +1,7 @@
 # A real application: Node.js + MariaDB
 
 From zero to a three-replica web app with a database, built, deployed and operated with SatL alone.
-Every command and every output on this page was run on the three-node test cluster — the surprises it hit are left in, because they are the ones you will hit.
+Every command and every output on this page was run on the three-node test cluster; the surprises it hit are left in, because they are the ones you will hit.
 
 The app is a guestbook: a Node.js server that reads and writes a MariaDB table, three replicas behind a published port, the database pinned to one node with a node-local volume.
 On the way it uses `satl build`, secrets, constraints, placement preferences, healthchecks, `satl stack`, the routing mesh, a rolling update and a hot resize.
@@ -10,9 +10,9 @@ On the way it uses `satl build`, secrets, constraints, placement preferences, he
 
 A SatL cluster: the [install](../start/install.md) and a `swarm join` per node.
 
-And **[a local registry on every node](../start/registry.md)**, each seeded with the base image this page builds `FROM` — `127.0.0.1:5000/satl-test/freebsd-runtime:15.1`, exactly as [Your first container](../start/first-container.md) uses it.
+And **[a local registry on every node](../start/registry.md)**, each seeded with the base image this page builds `FROM`, `127.0.0.1:5000/satl-test/freebsd-runtime:15.1`, exactly as [Your first container](../start/first-container.md) uses it.
 On every node is not a formality: `127.0.0.1:5000` resolves to a different registry on each machine, and a node whose registry is missing the base image cannot build, while a node missing the *built* image cannot run a replica.
-That is the shape of the whole page — every `satl build` below happens once per node.
+That is the shape of the whole page; every `satl build` below happens once per node.
 
 ## 1. The application
 
@@ -28,7 +28,7 @@ Two files.
 }
 ```
 
-`app/server.js` — the interesting bits are where the password and the
+`app/server.js`: the interesting bits are where the password and the
 database host come from:
 
 ```js
@@ -92,7 +92,7 @@ ENTRYPOINT ["/usr/local/bin/node", "/srv/app/server.js"]
 ```
 
 `COPY` reads the Satlfile's own directory; `RUN` executes in a chroot of the
-assembled rootfs — here that is what runs `npm install`, with the network,
+assembled rootfs; here that is what runs `npm install`, with the network,
 before the image is packed.
 
 ```console
@@ -132,12 +132,12 @@ exec /usr/local/libexec/mariadbd --user=mysql --datadir="$DATA" \
 
 Three things on this page were learned the hard way, and the logs showed each:
 
-- `mariadbd` lives in **`/usr/local/libexec`**, not `sbin` — the first build
+- `mariadbd` lives in **`/usr/local/libexec`**, not `sbin`, the first build
   failed with `exec: /usr/local/sbin/mariadbd: not found`;
 - the default socket path `/var/run/mysql/` does not exist in a minimal
   image, so the socket is moved to `/tmp` with a flag;
 - `--init-file` is read **after** mariadbd drops to the `mysql` user, so the
-  file must live somewhere that user can read — the data directory, not
+  file must live somewhere that user can read, the data directory, not
   `/tmp` written by root.
 
 `db/Satlfile`:
@@ -157,7 +157,7 @@ Built and registered 127.0.0.1:5000/satl-test/tuto-db:latest (manifest sha256:f0
 ```
 
 `mariadbd --user=mysql` drops privileges itself, so the entrypoint can run as
-root — no `sudo`/`su` is needed inside the image (the minimal base has no PAM
+root; no `sudo`/`su` is needed inside the image (the minimal base has no PAM
 stack, so those would not work anyway).
 
 ## 4. The stack
@@ -212,20 +212,20 @@ secrets:
 
 What each choice is buying:
 
-- **the secret is mounted on both services** — the app reads it too, and a
+- **the secret is mounted on both services**: the app reads it too, and a
   service only gets the secrets it declares (the first deploy of this page's
   app crashed on exactly that);
 - **the database is pinned to one node** by the constraint, because its
-  volume is node-local — the scheduler warning says as much on deploy;
+  volume is node-local; the scheduler warning says as much on deploy;
 - **`spread: node.hostname`** keeps the three web replicas on three different
   nodes without forbidding anything (a preference, not a constraint);
 - the healthcheck deserves a paragraph:
 
 !!! warning "There is no `localhost` inside a SatL jail"
 
-    A VNET jail's `lo0` carries only `::1` — `127.0.0.1` is unassigned, so the Docker-style `curl http://localhost/` probe cannot connect.
+    A VNET jail's `lo0` carries only `::1`; `127.0.0.1` is unassigned, so the Docker-style `curl http://localhost/` probe cannot connect.
     Probe the task's own address, which is what the `ifconfig` one-liner reads.
-    Two more traps the minimal base sets: there is no `awk` (hence the pure-shell `while read`), and compose files refuse `$` interpolation — every literal dollar is written `$$`.
+    Two more traps the minimal base sets: there is no `awk` (hence the pure-shell `while read`), and compose files refuse `$` interpolation; every literal dollar is written `$$`.
 
 Deploy it with the stack verbs:
 
@@ -242,7 +242,7 @@ ID             NAME         IMAGE                NODE           CURRENT STATE
 2s0p6ydq8lu4   tuto_web.3   …/tuto-web:latest    fbsd-dev---2   Running
 ```
 
-The web tasks took a few seconds to report `Running`: the health gate — a
+The web tasks took a few seconds to report `Running`: the health gate, a
 task is not `RUNNING` until its probe passes, which for this app means "the
 database answered `SELECT 1`".
 
@@ -262,13 +262,13 @@ $ for i in 1 2 3 4 5 6; do curl -s http://152.228.231.20:18090/ |
 ```
 
 Every one of those requests went through a node that may host no replica, and all three messages are in the one database on node1.
-The `client:` field on the page shows the mesh's relay address, not yours — that is the SNAT trade, and the [`satl.publish.proxy_protocol=v2` label](../use/publishing-ports.md#the-client-address) is the opt-in remedy.
+The `client:` field on the page shows the mesh's relay address, not yours; that is the SNAT trade, and the [`satl.publish.proxy_protocol=v2` label](../use/publishing-ports.md#the-client-address) is the opt-in remedy.
 
 ## 6. A rolling update, without losing a request
 
 Change the page, rebuild under a new tag **on each of the three nodes**, and only then update the service.
-A rolling update replaces tasks node by node, so a node that never got `:v2` cannot start its replacement — its own loopback registry answers `404` for a tag nothing pushed there, the task fails terminally, and the update stalls on that node.
-(A node with *no* registry at all fails differently and much more quietly — [why](../use/images.md#image-locality).)
+A rolling update replaces tasks node by node, so a node that never got `:v2` cannot start its replacement; its own loopback registry answers `404` for a tag nothing pushed there, the task fails terminally, and the update stalls on that node.
+(A node with *no* registry at all fails differently and much more quietly; [why](../use/images.md#image-locality).)
 
 ```console
 $ sudo satl build -t 127.0.0.1:5000/satl-test/tuto-web:v2    # on each node
@@ -284,7 +284,7 @@ Not one dropped connection: a slot's replacement must pass its healthcheck and o
 !!! note "If the update pauses"
 
     `--update-failure-action pause` (the default) stops a rollout whose tasks fail.
-    Push the same update again to resume — and if the failed task still counts against the *same* spec, any small spec change (a label) starts a clean count.
+    Push the same update again to resume, and if the failed task still counts against the *same* spec, any small spec change (a label) starts a clean count.
     During this page's run, one task was rejected by a transient `zfs … dataset is busy` and paused the rollout twice before a label bump carried it through.
 
 ## 7. A hot resize
@@ -296,12 +296,12 @@ $ sudo rctl jail:$(sudo satl service ps tuto_web --no-trunc -q | head -1)
 jail:24ceq6bf9xx2dzm0e4bcccwe6:memoryuse:sigkill=268435456
 ```
 
-The rctl rule changed and the task ids did not — a resources-only update is applied to the live jails, not rolled.
+The rctl rule changed and the task ids did not; a resources-only update is applied to the live jails, not rolled.
 For the database, that is the difference between a resize and an incident.
 
 ## 8. The database survives a crash
 
-Kill the jail out from under MariaDB — the honest crash rehearsal, since
+Kill the jail out from under MariaDB, the honest crash rehearsal, since
 `satl kill` on a service task is a retirement (see
 [Differences from Docker](../docker-differences.md)):
 
@@ -320,12 +320,12 @@ directory on the volume, and every message was still there.
 
 ## Where to go next
 
-- [Publishing ports](../use/publishing-ports.md) — the mesh, the SNAT trade,
+- [Publishing ports](../use/publishing-ports.md): the mesh, the SNAT trade,
   and the PROXY-protocol mode;
-- [Secrets and configs](../use/secrets-and-configs.md) — rotation is by
+- [Secrets and configs](../use/secrets-and-configs.md): rotation is by
   replacement;
-- [Rolling updates](../use/rolling-updates.md) — the policy knobs this page
+- [Rolling updates](../use/rolling-updates.md): the policy knobs this page
   left at their defaults;
-- [Resource limits](../use/resource-limits.md) — what the rctl rules actually
+- [Resource limits](../use/resource-limits.md): what the rctl rules actually
   do, and the shrink warning;
-- [Metrics](../use/metrics.md) — watch the whole thing from Prometheus.
+- [Metrics](../use/metrics.md): watch the whole thing from Prometheus.

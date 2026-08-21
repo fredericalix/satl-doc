@@ -41,7 +41,7 @@ ID             NAME             MODE         REPLICAS   IMAGE                   
 ```
 
 `web` was created with `satl run --name web`.
-`hopeful_rhodes` was created by a bare `satl run` that has since exited — the generated name is the giveaway.
+`hopeful_rhodes` was created by a bare `satl run` that has since exited; the generated name is the giveaway.
 Both are services, because there is nothing else for them to be.
 
 ## What the model buys
@@ -76,8 +76,8 @@ This is the part worth reading before you install anything.
     A task is one-shot and immutable: running it again would mean a *new* task, which is a new container id, which is not something Docker's API can express.
     `docker start` therefore works only on a container that was created and never started.
 
-    What you do instead: `satl run` again, or — if the thing should be running
-    continuously — make it a service and let the restart policy own it.
+    What you do instead: `satl run` again, or, if the thing should be running
+    continuously; make it a service and let the restart policy own it.
 
 !!! warning "`satl rm` removes the backing service"
 
@@ -97,27 +97,27 @@ Three smaller consequences of the same shape:
 
 ??? note "Why not make a container a Service instead of a Task?"
 
-    It would fit Docker's semantics better — `start` after `stop` would create a fresh task under a stable id — and it is recorded in SatL's own `docs/api-compat.md` as a deliberate, reversible choice rather than an oversight.
+    It would fit Docker's semantics better (`start` after `stop` would create a fresh task under a stable id), and it is recorded in SatL's own `docs/api-compat.md` as a deliberate, reversible choice rather than an oversight.
     The cost is that every container would then carry a full service spec and an update policy it never uses.
     The decision is still open.
 
 ## Where SatL stops
 
-Three boundaries are worth knowing early — not as disclaimers, but because each
+Three boundaries are worth knowing early, not as disclaimers, but because each
 one tells you which tool to reach for next.
 
-- **It is close to Docker Swarm, and that is the point — but the data plane is FreeBSD's.**
+- **It is close to Docker Swarm, and that is the point, but the data plane is FreeBSD's.**
   The orchestration follows SwarmKit's behavioural model deliberately closely: the same task states, the same restart and update semantics, the same join-token scheme, and a real ingress [routing mesh](../use/publishing-ports.md#the-routing-mesh-every-manager-answers) where every manager answers every published port.
   What differs is underneath.
-  FreeBSD has no IPVS, so there is **no service VIP** — discovery is DNS round-robin — and the mesh is built from `pf` redirects, which makes it managers-only rather than every-node.
+  FreeBSD has no IPVS, so there is **no service VIP**, discovery is DNS round-robin, and the mesh is built from `pf` redirects, which makes it managers-only rather than every-node.
   [Why FreeBSD](why-freebsd.md) has the full accounting of what the substrate gives and withholds.
 - **`satl build` is the FreeBSD image tool, not a Dockerfile engine.**
   It builds real images and is meant to be used: multi-layer, multi-stage with `COPY --from`, `FROM scratch`, a content-addressed incremental cache (51 s cold, 7 s when nothing moved) and `--push` to a registry.
-  What it is not is BuildKit — the format is the pkg-shaped subset of a Dockerfile, there is no daemon-side `POST /build`, and it does not build **Linux** images.
+  What it is not is BuildKit; the format is the pkg-shaped subset of a Dockerfile, there is no daemon-side `POST /build`, and it does not build **Linux** images.
   Pull those from a registry and [run them under the linuxulator](../use/linux-containers.md).
 - **It is not a runtime.**
   `ocijail` is.
-  If a jail behaves oddly, the question is usually what SatL put in the OCI spec, not how SatL started the process — which is a much easier question to answer.
+  If a jail behaves oddly, the question is usually what SatL put in the OCI spec, not how SatL started the process, which is a much easier question to answer.
 
 If you hit a fourth boundary we have not written down, that is worth telling us
 about: [Before you report a problem](../trouble/getting-help.md) says what makes

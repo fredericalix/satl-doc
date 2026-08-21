@@ -10,4 +10,4 @@
     sudo grep -a satld /var/log/messages | tail -50
     ```
 
-    `grep -a` is not optional — see [Reading a log line](../config/logging.md).
+    `grep -a` is not optional; see [Reading a log line](../config/logging.md).

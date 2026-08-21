@@ -87,7 +87,7 @@
 | Symptom | |
 | --- | --- |
 | a `grep` that should match prints nothing and exits 1 | [reading the log](reading-the-log.md#grep-a) |
-| the line you want is not there — "did this ever happen?" | [reading the log](reading-the-log.md#rotation) |
+| the line you want is not there, "did this ever happen?" | [reading the log](reading-the-log.md#rotation) |
 | two timestamps, or two `{`, on one line | [reading the log](reading-the-log.md#merged-lines) |
 | `M-^` sequences in a line | [reading the log](reading-the-log.md#merged-lines) |
 | a background loop's span nested under another span | [reading the log](reading-the-log.md#span-chain) |

@@ -11,7 +11,7 @@ ways for the overlay to lie to you:
   Read the result back; do not trust the exit code.
 - **a wrong MTU does not break anything visibly.**
   `vxlan_encap4()` clears DF on the outer header, so an oversized frame is *fragmented*, not dropped.
-  The overlay keeps working, every ping answers, every transfer completes byte-exact — while paying two packets per frame.
+  The overlay keeps working, every ping answers, every transfer completes byte-exact, while paying two packets per frame.
   This is the dangerous case, and the fragmentation counters are the only thing that reports it.
 
 ## Diagnostic order
@@ -21,7 +21,7 @@ It is ordered by how often each step is the answer, and the first step is the on
 
 1. **DF ping sweep the underlay**, every node to every other.
 2. Compare every overlay interface's MTU against that measurement − 50 (− 84
-   on an encrypted network) —
+   on an encrypted network),
    **including the in-jail `epair` `b` ends**, which are the ones nothing
    propagates to.
 3. Check the **outer fragmentation counters on both ends**
@@ -50,8 +50,8 @@ The whole diagnosis is one flag in the first word.
 | Flag word | Kernel line in `/var/log/messages` | Meaning |
 | --- | --- | --- |
 | `1008843<UP,BROADCAST,RUNNING,…>` | `link state changed to UP` | healthy |
-| `1008803<UP,BROADCAST,…>` — **no `RUNNING`** | `cannot initialize interface: destination address type is not supported` | the VTEP has no usable remote address |
-| `1008803<UP,BROADCAST,…>` — **no `RUNNING`** | `network identifier 4242 already exists in this socket` | that VNI is already in use on this node's VXLAN socket |
+| `1008803<UP,BROADCAST,…>`, **no `RUNNING`** | `cannot initialize interface: destination address type is not supported` | the VTEP has no usable remote address |
+| `1008803<UP,BROADCAST,…>`, **no `RUNNING`** | `network identifier 4242 already exists in this socket` | that VNI is already in use on this node's VXLAN socket |
 
 `ifconfig` exits 0 and prints `status: active` in **all three** cases.
 The absence of `RUNNING` is the only signal the interface itself gives you; the reason is only in the kernel log.
@@ -62,12 +62,12 @@ A destroy/create cycle needs a full FDB re-push, which the daemon does; an inter
 
 ??? note "Why the interface exists at all if it is broken"
 
-    The duplicate-VNI check runs on `up`, not on `create` — the UDP socket does not exist until then.
+    The duplicate-VNI check runs on `up`, not on `create`; the UDP socket does not exist until then.
     And a static FDB entry installs perfectly well on a dead interface: the FDB needs only the destination address family, not a working socket.
     So **FDB programming is not a health check**, and neither is a successful `create`.
 
     Several networks per node legitimately share one UDP socket on port 4789 with different VNIs, each keeping an independent FDB.
-    (Encrypted networks are the exception: each binds its own port from 4790–4999 — see [below](#encrypted).) The duplicate-VNI check exists to protect that sharing.
+    (Encrypted networks are the exception: each binds its own port from 4790–4999; see [below](#encrypted).) The duplicate-VNI check exists to protect that sharing.
 
 ## One pair of tasks fails and everything else works { #one-pair }
 
@@ -84,7 +84,7 @@ sysctl -n net.link.vxlan.<unit>.ftable.count      # trustworthy size
 sysctl -n net.link.vxlan.<unit>.ftable.dump       # the entries — read the trap below
 ```
 
-To find `<unit>` — the sysctl tree is keyed by the clone unit, not by the
+To find `<unit>`; the sysctl tree is keyed by the clone unit, not by the
 interface name, and nothing maps one to the other:
 
 ```sh
@@ -94,7 +94,7 @@ sysctl -N net.link.vxlan |
 
 **Reading.**
 **The FDB is per direction, and the node reporting total loss is usually the correctly configured one.**
-Deleting node 1's entry for node 3's endpoint breaks the pair in *both* directions: node 3's echo requests still arrive (its own entry is fine), but node 1's *replies* are unicast to node 3's MAC — whose entry is the one that is missing.
+Deleting node 1's entry for node 3's endpoint breaks the pair in *both* directions: node 3's echo requests still arrive (its own entry is fine), but node 1's *replies* are unicast to node 3's MAC, whose entry is the one that is missing.
 So node 3 sees 100 % loss and node 1's tables are the broken ones.
 
 **Diagnose from the sender of the replies.**
@@ -109,18 +109,18 @@ What is exactly reversible by hand is nothing: re-adding an entry restores the p
       The kernel formats it into a fixed `PAGE_SIZE` buffer and backs out the partial line, so the output stays perfectly well-formed and carries no hint that anything is missing.
       Measured: 80 entries → 80 lines; 81 → 81; 82 → **81**; 2500 → **81**.
       An IPv6 remote widens the line and lowers the ceiling to about 51.
-      **`ftable.count` is the trustworthy size** — compare the two before believing a dump.
+      **`ftable.count` is the trustworthy size**: compare the two before believing a dump.
     - **`ftable_nospace` can never move.**
       It counts learning failures on a code path SatL never reaches, because learning is off.
       A zero there is not evidence of a healthy table.
     - **`Oerrs == 0` proves nothing.**
-      Non-zero means frames went to the blackhole default remote — something tried to reach an endpoint the control plane has not programmed.
+      Non-zero means frames went to the blackhole default remote; something tried to reach an endpoint the control plane has not programmed.
       But with an on-link blackhole, `arpresolve()` returns `EWOULDBLOCK` for the first `net.link.ether.inet.maxtries` (default **5**) frames after the ARP entry is created, and those are counted in **`Opkts`** as successful transmits.
       Measured: 4 BUM frames on a fresh entry → `Opkts +4`, `Oerrs` **0**; the next 6 → `Opkts +1`, `Oerrs +5`; delete the ARP entry and the count starts over.
       A three-ping connectivity probe is entirely invisible.
 
     Prefer comparing the FDB against what the control plane says it programmed, and use `tcpdump -ni <underlay> "udp port 4789"` when you want to watch the frames themselves.
-    On an encrypted network the frames are ESP, not UDP — see [below](#encrypted).
+    On an encrypted network the frames are ESP, not UDP; see [below](#encrypted).
 
 ## Everything works, throughput is poor, packet counts are doubled { #fragmentation }
 
@@ -133,7 +133,7 @@ Every ping of every size answers.
 Transfers complete byte-exact.
 Throughput is disappointing and loss seems higher than the underlay's.
 
-**Check** — on the **hosts**, both ends:
+**Check**: on the **hosts**, both ends:
 
 ```sh
 netstat -s -p ip | grep -i fragment
@@ -166,7 +166,7 @@ SatL computes `underlay MTU − 50` and sets it explicitly; if your underlay is 
 
 !!! danger "Do not expect throughput to reveal this"
 
-    Across runs, the reference link delivered **33–66 MB/s in *correct* configurations** — a wider spread than the difference between right and wrong in any single run.
+    Across runs, the reference link delivered **33–66 MB/s in *correct* configurations**, a wider spread than the difference between right and wrong in any single run.
     One run measured the broken configuration at half the correct one; the final run measured them within 10 %.
     What moves the number on a shared virtual switch is packet loss in the hypervisor (0.4–2 %), not encapsulation.
 
@@ -185,9 +185,9 @@ SatL computes `underlay MTU − 50` and sets it explicitly; if your underlay is 
     | Interface | Set by |
     | --- | --- |
     | the VXLAN interface | the bridge, or explicitly |
-    | the **bridge** | explicitly, **after the first `addm`** — the first member added overwrites the bridge's MTU, and from then on the bridge propagates to every member |
+    | the **bridge** | explicitly, **after the first `addm`**; the first member added overwrites the bridge's MTU, and from then on the bridge propagates to every member |
     | the `epair` `a` end (a bridge member) | the bridge, and **only** the bridge: `SIOCSIFMTU` is `EOPNOTSUPP` on a member, even for the value it already holds |
-    | the **in-jail `epair` `b` end** | explicitly. It is never a bridge member, so nothing propagates to it — and it is the end that determines the container's TCP MSS |
+    | the **in-jail `epair` `b` end** | explicitly. It is never a bridge member, so nothing propagates to it, and it is the end that determines the container's TCP MSS |
 
     An interface reporting **1470** has no remote address at all: with no destination the driver cannot know whether to reserve 20 bytes for IPv4 or 40 for IPv6, so it reserves 30.
     A 1470 overlay interface is misconfigured.
@@ -197,7 +197,7 @@ SatL computes `underlay MTU − 50` and sets it explicitly; if your underlay is 
 **Symptom.**
 A 56-byte ping is 0 % loss.
 A 1472-byte ping is **100 % loss with no error printed**.
-TCP connects — the handshake is small — and then stalls dead and dies on timeout.
+TCP connects (the handshake is small) and then stalls dead and dies on timeout.
 The receiver got zero bytes.
 
 **Check.**
@@ -209,7 +209,7 @@ netstat -s -p ip | grep -iE 'fragment'      # look for "fragments dropped"
 
 **Reading.**
 `frags_rcvd +44 frags_dropped +44`, and nothing else anywhere.
-This is the previous entry's too-large MTU **on top of a path that discards IP fragments** — cloud SDNs and stateful firewalls that drop fragments are common.
+This is the previous entry's too-large MTU **on top of a path that discards IP fragments**; cloud SDNs and stateful firewalls that drop fragments are common.
 
 **Fix.**
 Correct the MTU.
@@ -218,14 +218,14 @@ That is the entire point of getting the 50 bytes right.
 
 !!! note "A receive-side MTU is not enforced"
 
-    A node whose underlay MTU is *lower* than its peers' accepts oversized frames without counting an error — an interface MTU on FreeBSD is a transmit-side limit.
+    A node whose underlay MTU is *lower* than its peers' accepts oversized frames without counting an error; an interface MTU on FreeBSD is a transmit-side limit.
     Measured: with one node's underlay lowered to 1400 and the overlay at 1450, everything still works and `Ierrs` does not move.
     So a mismatched node shows up as fragmentation on its own outbound path and nowhere else.
 
 ## A task loses the network some time after a configuration change { #stale-arp }
 
 **Symptom.**
-Traffic that worked stops, with no error and no packet ever rejected — 100 % loss to one address, indefinitely.
+Traffic that worked stops, with no error and no packet ever rejected, 100 % loss to one address, indefinitely.
 
 **Check**
 
@@ -261,7 +261,7 @@ Recreating the task is what clears its ARP table.
 ## A service name does not resolve, or resolves to the wrong service { #dns }
 
 **Symptom.**
-A container cannot resolve a service name on an overlay it is attached to — or resolves it and reaches the wrong service.
+A container cannot resolve a service name on an overlay it is attached to, or resolves it and reaches the wrong service.
 
 **Check**
 
@@ -277,13 +277,13 @@ sockstat -4l | grep ':53'                      # on the node: one socket per (no
 | --- | --- |
 | the target service has no `RUNNING` task | correct: the responder only answers with `RUNNING` tasks. A service whose tasks are all `STARTING` (waiting on a first healthcheck) resolves to nothing |
 | one `nameserver` line, but the service lives on the container's *other* network | not the cause: the responder identifies the querying task by source address and answers from **every** network it is attached to, whichever line the stub resolver picked |
-| the name exists on two of the task's networks | the answer comes from **one** of them — the first the service spec lists — and is never a merge of the two |
+| the name exists on two of the task's networks | the answer comes from **one** of them (the first the service spec lists), and is never a merge of the two |
 | a name that is on none of them | `NXDOMAIN` if the node has no upstream resolver configured, otherwise whatever the upstream says, relayed verbatim |
-| the container hardcodes another node's gateway address | its queries are **forwarded upstream instead of being answered** — a query whose source is not one of the node's own tasks is never answered from the table |
+| the container hardcodes another node's gateway address | its queries are **forwarded upstream instead of being answered**; a query whose source is not one of the node's own tasks is never answered from the table |
 
 **Fix.**
 Attach the service to a network the client is on, wait for a task to be `RUNNING`, or stop pointing the container at another node's responder.
-Note that the qualified `<name>.<network>` form is **not implemented** — an unqualified name is the only form, so a service must be uniquely named across a task's networks to be addressable unambiguously.
+Note that the qualified `<name>.<network>` form is **not implemented**; an unqualified name is the only form, so a service must be uniquely named across a task's networks to be addressable unambiguously.
 
 ## The counters live in two different stacks { #two-stacks }
 
@@ -298,19 +298,19 @@ The TCP endpoints are inside VNET jails, so:
   counters are the **host's**.
 
 Reading the wrong one of the two is the fastest route to a confident wrong
-conclusion — it happened while the reference measurements were being taken.
+conclusion; it happened while the reference measurements were being taken.
 
 Getting at the jail's side needs care, because **a container image generally ships no diagnostic tools**: the FreeBSD-based test rootfs has neither `netstat` nor `arp`, and an Alpine one has only busybox, whose `netstat` reads `/proc/net/*` and whose `arp` speaks a Linux ioctl.
 So `jexec <task> netstat -s -p tcp` works against a jail built from a full FreeBSD userland and not against a real container.
-For a real container, put a throwaway `path=/` jail on the same bridge and measure from there, or read what the host can see — the VXLAN and epair counters and the fragmentation counters are all the host's anyway.
+For a real container, put a throwaway `path=/` jail on the same bridge and measure from there, or read what the host can see; the VXLAN and epair counters and the fragmentation counters are all the host's anyway.
 
 ??? note "Reconciling the two, worked"
 
-    From a 64 MiB transfer between two jails: sender host `vxlan.opkts` minus receiver host `vxlan.ipkts` gives the frames that went missing — 209 in one run, 208 in another, about 0.4 % of ~49 000 frames.
+    From a 64 MiB transfer between two jails: sender host `vxlan.opkts` minus receiver host `vxlan.ipkts` gives the frames that went missing: 209 in one run, 208 in another, about 0.4 % of ~49 000 frames.
     In the first run the sender *jail's* `tcp.rexmit` was 209, matching exactly; in the second it was 1047, because retransmission is not one-to-one with loss (an RTO can resend more than was actually lost).
 
     So **the missing-frame count is the measure of loss and the retransmit counter is only its upper bound**.
-    In every run, the VXLAN interface's `ierrs/idrop/oerrs` and the underlay's `ierrs/idrop/iqdrops` were 0 on both nodes — nothing in either guest dropped anything, and every byte still arrived.
+    In every run, the VXLAN interface's `ierrs/idrop/oerrs` and the underlay's `ierrs/idrop/iqdrops` were 0 on both nodes; nothing in either guest dropped anything, and every byte still arrived.
     Packet counts across a tunnel are only meaningful next to the byte counts, the retransmit counter, and a bare-underlay control transfer run in the same session.
 
 ## Verifying an encrypted network, and watching rotation { #encrypted }
@@ -322,7 +322,7 @@ its MTU budget is underlay − 84 (1416 on 1500), so the
 [fragmentation](#fragmentation) math moves with it.
 
 **Verifying the wire.**
-Between two nodes running tasks of the network, everything on the network's port must be ESP — the UDP capture must print nothing:
+Between two nodes running tasks of the network, everything on the network's port must be ESP; the UDP capture must print nothing:
 
 ```sh
 sudo tcpdump -ni <underlay-if> proto 50                 # the ESP flow itself
@@ -332,22 +332,22 @@ sudo setkey -DP                                         # the outbound policies
 ```
 
 To watch the *decapsulated* packets during a capture, present them to bpf on `enc0` too: `sudo sysctl net.enc.in.ipsec_bpf_mask=2`, then `tcpdump -ni enc0 udp port <port>`.
-(`satld` sets the *filter* mask — the one pf sees — itself; the bpf mask is a capture-time knob for you.)
+(`satld` sets the *filter* mask, the one pf sees, itself; the bpf mask is a capture-time knob for you.)
 
 **A cleartext probe is supposed to die.**
 The `satl/guard` anchor blocks cleartext UDP to 4790–4999 on the underlay and passes only what arrives decapsulated on `enc0`.
-If you flush a node's SAs and ping across, the probe shows 100 % loss *and* nothing decapsulates onto the overlay bridge — the evidence is the block rule's counter moving (`pfctl -a satl/guard -sr`), not the ping.
+If you flush a node's SAs and ping across, the probe shows 100 % loss *and* nothing decapsulates onto the overlay bridge; the evidence is the block rule's counter moving (`pfctl -a satl/guard -sr`), not the ping.
 The node's security reconcile is level-triggered and runs at least once a minute, so a flushed guard, SA or SP converges back within a minute; if it does not, the node's log names the `sysctl`/`ifconfig`/`pfctl`/`setkey` call that failed.
 
 **Rotation is logged on the leader only.**
-Keys rotate every 12 h by default, and the `keyring transition` lines (`phase=generate|append|promote|prune`, with the network name) appear in exactly one manager's log — grep **all** managers before concluding rotation is stuck, and remember `/var/log/messages` rotates roughly hourly (`bzcat messages.*.bz2 | grep -a`):
+Keys rotate every 12 h by default, and the `keyring transition` lines (`phase=generate|append|promote|prune`, with the network name) appear in exactly one manager's log; grep **all** managers before concluding rotation is stuck, and remember `/var/log/messages` rotates roughly hourly (`bzcat messages.*.bz2 | grep -a`):
 
 ```sh
 sudo grep -a 'keyring transition' /var/log/messages    # run on each manager
 ```
 
 **One permanent side effect, by design.**
-On the first encrypted network a node hosts, `satld` sets `net.enc.in.ipsec_filter_mask=2` and brings `enc0` up — node-wide, once, and deliberately never restored when the last encrypted network leaves.
+On the first encrypted network a node hosts, `satld` sets `net.enc.in.ipsec_filter_mask=2` and brings `enc0` up, node-wide, once, and deliberately never restored when the last encrypted network leaves.
 That is the design, not a leak.
 
 ## `if_vxlan` is not in the GENERIC kernel { #kldload }

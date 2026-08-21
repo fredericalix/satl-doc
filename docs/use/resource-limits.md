@@ -6,7 +6,7 @@ satl service create --limit-memory 512m --limit-cpu 1.5 registry.example.com/app
 ```
 
 Two flags, and they behave less alike than their names suggest.
-SatL has no cgroups to work with — there are none on FreeBSD — so both are `rctl(8)` rules scoped to the container's jail, and `rctl` is a different tool with different semantics.
+SatL has no cgroups to work with (there are none on FreeBSD), so both are `rctl(8)` rules scoped to the container's jail, and `rctl` is a different tool with different semantics.
 
 ## They need `kern.racct.enable=1`, and it is a boot-time tunable
 
@@ -60,18 +60,18 @@ sysctl kern.racct.enable          # expect 1
 
 This is the closest FreeBSD equivalent of a Linux cgroup OOM kill, and it is not a throttle, a soft limit, or a reclaim hint.
 Cross the cap and the process gets `SIGKILL`.
-A container that occasionally spikes past its limit will die, and its service's restart policy will replace it — which will look like a crash loop with no message, because from inside the container nothing happened.
+A container that occasionally spikes past its limit will die, and its service's restart policy will replace it, which will look like a crash loop with no message, because from inside the container nothing happened.
 
 ??? note "Why not `memoryuse:deny`?"
 
     Because it would be silently useless.
-    RSS is not a deniable resource in the FreeBSD kernel — there is no allocation to refuse at the right moment — yet `rctl` accepts the rule without complaint.
+    RSS is not a deniable resource in the FreeBSD kernel (there is no allocation to refuse at the right moment), yet `rctl` accepts the rule without complaint.
     Measured: a 64 MB `deny` cap allocated 200 MB and nothing objected.
     A rule that is accepted and does nothing is worse than no rule, so SatL uses the one that works.
 
 ### `--cpus` throttles, over time
 
-`pcpu:deny` makes the scheduler hold the jail toward the cap, and rctl's accounting is a decaying average — so the limit is *approached*, not imposed instantly.
+`pcpu:deny` makes the scheduler hold the jail toward the cap, and rctl's accounting is a decaying average, so the limit is *approached*, not imposed instantly.
 A short burst above it is normal and expected.
 
 Measured on a fixed CPU-bound workload: 4.4 s unlimited, 10.5 s at `pcpu:deny=20`, converging further on longer runs.
@@ -118,17 +118,17 @@ They are removed when the container is removed.
 satl service update --limit-memory 1g web
 ```
 
-A `service update` whose only change is resources — limits, reservations, or both — **does not roll the tasks**.
+A `service update` whose only change is resources (limits, reservations, or both) **does not roll the tasks**.
 The new values are pushed into the live task objects and each node's agent rewrites the jail's rctl rules in place: the same containers keep serving, with no restart and no gap.
 For a database, that is the difference between a resize and an incident.
 
 `satl service update` takes `--limit-cpu`, `--limit-memory`, `--reserve-cpu` and `--reserve-memory`; passing `0` clears that dimension.
-Any other change in the same update — an image, an env var, a label — takes the ordinary rolling path, and the replacement tasks carry the new resources whole.
+Any other change in the same update (an image, an env var, a label) takes the ordinary rolling path, and the replacement tasks carry the new resources whole.
 
 Two things to know:
 
 - **A memory shrink below current usage is a kill waiting to happen.**
-  The `memoryuse:sigkill` rule does not evict what is already allocated — it kills on the *next* allocation past the cap — so a jail using 160 MB that is capped at 100 MB survives until it grows, then dies in a way that looks like a crash.
+  The `memoryuse:sigkill` rule does not evict what is already allocated (it kills on the *next* allocation past the cap), so a jail using 160 MB that is capped at 100 MB survives until it grows, then dies in a way that looks like a crash.
   The daemon cannot see node-local usage when you write the spec, so it cannot refuse; the node's agent logs a loud warning naming the watermark when it arms such a rule.
   Check first with `rctl -h jail:<container id>`.
 - **Reservations change nothing for running tasks.**

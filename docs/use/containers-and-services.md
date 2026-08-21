@@ -34,7 +34,7 @@ Error response from daemon: container eager_clarke has already run and cannot be
 started again: a SatL task is one-shot, so create a new container instead (satl run)
 ```
 
-Re-running a task would mean a *new* task — a new id, and therefore a new container id, which Docker's API has no way to express: it would have to answer "started" and hand back an object under a different identity.
+Re-running a task would mean a *new* task, a new id, and therefore a new container id, which Docker's API has no way to express: it would have to answer "started" and hand back an object under a different identity.
 So `docker start` works only on a container that was created and never started, and the way to run that workload again is to create it again.
 
 If what you want is "keep this running", that is a service with a restart policy,
@@ -51,13 +51,13 @@ It has to: leave the service behind and the orchestrator would notice a missing 
 The container you just removed would come back, which is not what anyone means by `rm`.
 
 For a service you created with `satl service create`, use
-[`satl service rm`](../reference/cli/service.md#satl-service-rm) — same effect,
+[`satl service rm`](../reference/cli/service.md#satl-service-rm): same effect,
 named for what it does.
 
 ### `satl ps` shows the newest task per slot
 
 A service's replicas are numbered *slots*.
-Slot 1 of `web` may have been filled by four successive tasks over its life — a crash, two restarts, a rolling update — and `satl ps` shows you the current one, once.
+Slot 1 of `web` may have been filled by four successive tasks over its life (a crash, two restarts, a rolling update), and `satl ps` shows you the current one, once.
 Retained history is not listed as extra containers, which is why a service that has restarted twice does not look like three containers:
 
 ```console
@@ -67,7 +67,7 @@ CONTAINER ID   IMAGE                     COMMAND      CREATED      STATUS       
 2blf7rzo7agy   …/alpine                  "uname -a"   2 days ago   Exited (0) 2 days ago                          linux/amd64     eager_clarke
 ```
 
-The `CONTAINER ID` is the 25-character task id, truncated to 12 as Docker does — not a 64-character hex digest.
+The `CONTAINER ID` is the 25-character task id, truncated to 12 as Docker does, not a 64-character hex digest.
 `NAMES` is the service's name.
 [`PLATFORM`](images.md#which-platform-you-get) is a SatL column, sitting between `PORTS` and `NAMES`.
 
@@ -80,7 +80,7 @@ ID             NAME    IMAGE        NODE    DESIRED STATE   CURRENT STATE       
 ```
 
 `DESIRED STATE` is what the cluster wants; `CURRENT STATE` is what the node last reported.
-A task whose desired state is `Running` while its current state is terminal is a task the orchestrator intends to replace — unless its restart budget is spent, which is the one case where that pair is stable rather than transient.
+A task whose desired state is `Running` while its current state is terminal is a task the orchestrator intends to replace, unless its restart budget is spent, which is the one case where that pair is stable rather than transient.
 
 ## The states a task goes through
 
@@ -90,7 +90,7 @@ NEW → PENDING → ASSIGNED → ACCEPTED → PREPARING → READY → STARTING �
                                           COMPLETE  /  FAILED  /  SHUTDOWN
 ```
 
-`PENDING` means the scheduler has not placed it — usually because no node satisfies its constraints or platform.
+`PENDING` means the scheduler has not placed it, usually because no node satisfies its constraints or platform.
 `PREPARING` is the image pull, the layer clone and the bundle.
 `STARTING` covers the gap between "the process is running" and "the process is ready", which is where a [healthcheck](healthchecks.md) lives.
 `SHUTDOWN` is an ordered stop; `FAILED` is a task that stopped without being asked to.
@@ -99,7 +99,7 @@ Docker's flatter vocabulary is derived from that: `new` through `ready` render a
 `paused` and `restarting` never occur.
 
 Every transition is logged with `from` and `to`, so a task's whole life is one
-grep — see [Logs](../config/logging.md#grep-by-identity-not-by-time).
+grep; see [Logs](../config/logging.md#grep-by-identity-not-by-time).
 
 ## Running something once
 
@@ -112,12 +112,12 @@ Without `-d`, `satl run` follows the container's log and then exits with the con
 `Ctrl-C` kills the container and still reports its code.
 
 `satl wait` also exits with the container's exit code, where `docker wait` always
-exits 0 and only prints it — worth knowing if you have a script that tests the
+exits 0 and only prints it, worth knowing if you have a script that tests the
 exit status.
 
 ## Jobs: services that run to completion { #jobs }
 
-A keep-alive service is replaced when it stops; a **job** is the opposite — it
+A keep-alive service is replaced when it stops; a **job** is the opposite; it
 runs until it finishes, and finishing is the goal:
 
 ```sh
@@ -126,21 +126,21 @@ satl service create --mode global-job node-inventory:1
 ```
 
 A replicated job runs `TotalCompletions` slots to a zero exit, at most `--max-concurrent` at a time (both default to the replica count).
-A global job runs once per eligible node — and a node that joins or becomes eligible later gets its run too, which makes it the cluster-wide "run this everywhere" tool.
+A global job runs once per eligible node, and a node that joins or becomes eligible later gets its run too, which makes it the cluster-wide "run this everywhere" tool.
 
 The semantics invert the ones above:
 
-- a task that exits 0 is `Complete` and is **never restarted** — that is the
+- a task that exits 0 is `Complete` and is **never restarted**; that is the
   success, and `satl service ls` counts it (`REPLICAS` reads completions over
   the goal: `2/4` means two done);
-- a task that fails is retried in its slot, within the restart budget —
+- a task that fails is retried in its slot, within the restart budget:
   `none` is rejected on a job, and `any` is rewritten to `on-failure` at the
   API;
 - **`satl service update` on a job re-runs it**: the old run is stopped and every slot starts over on the new spec.
-  That, not a rolling update, is the point of updating a job — there is no rollout status.
+  That, not a rolling update, is the point of updating a job; there is no rollout status.
 
 Two gaps, stated: a retry starts immediately (jobs have no restart-delay
-queue), and `Restart.Window` is not honoured — the attempt budget counts the
+queue), and `Restart.Window` is not honoured; the attempt budget counts the
 slot's lifetime, not a rate.
 
 ## Keeping something running
@@ -156,7 +156,7 @@ Conditions are `none`, `on-failure` and `any` (`satl run` spells them Docker's w
 
 !!! warning "The restart budget is finite, and a spent one looks like a stuck orchestrator"
 
-    `MaxAttempts` counts replacements per replica *and* per spec version, and the count is derived from the store's task history rather than held in a manager's memory — so it survives a manager restart and a change of leader.
+    `MaxAttempts` counts replacements per replica *and* per spec version, and the count is derived from the store's task history rather than held in a manager's memory, so it survives a manager restart and a change of leader.
     A crash-looping task therefore stops for good once its attempts are spent:
 
     ```
@@ -171,7 +171,7 @@ Conditions are `none`, `on-failure` and `any` (`satl run` spells them Docker's w
 !!! info "Setting a restart delay needs the API"
 
     `satl service create` carries `--restart-condition` but none of Docker's `--restart-delay`, `--restart-max-attempts` or `--restart-window`.
-    A service that needs anything other than the defaults — `any`, 5 s, unlimited — has to be created over the REST API:
+    A service that needs anything other than the defaults (`any`, 5 s, unlimited) has to be created over the REST API:
 
     ```sh
     curl -s --unix-socket /var/run/satl.sock -X POST \
@@ -191,7 +191,7 @@ satl kill web        # the same graceful shutdown
 
 Both honour the task spec's stop signal and grace period.
 `satl stop`'s `-t` is ignored and `satl kill`'s `--signal` is not forwarded, for the same reason in both cases: the grace period and the signal live in the task spec, which is immutable after creation.
-Changing them means a new spec — a [service update](rolling-updates.md).
+Changing them means a new spec, a [service update](rolling-updates.md).
 
 Killing a container of a service with a restart policy gets you a replacement, which is the policy working.
 Stopping the *service* is `satl service rm`, or `satl service scale web=0`.
@@ -199,7 +199,7 @@ Stopping the *service* is `satl service rm`, or `satl service scale web=0`.
 ## Names
 
 Service and container names must satisfy SatL's naming rule: `^[a-zA-Z0-9](?:[-_]*[A-Za-z0-9]+)*$`, at most 63 characters.
-Letters, digits, hyphens and underscores — **dots are rejected**, where Docker allows them.
+Letters, digits, hyphens and underscores; **dots are rejected**, where Docker allows them.
 The same rule applies to network names.
 
 Omit `--name` and one is generated, Docker-style (`eager_clarke`, `dazzling_torek`).

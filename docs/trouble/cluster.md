@@ -15,7 +15,7 @@ ID       HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS  ENGINE VERSION
 3ef4…    node3     Ready   Active        Reachable       0.1.0
 ```
 
-— and the cluster is answering writes perfectly well, which it could not do with
+and the cluster is answering writes perfectly well, which it could not do with
 a dead leader.
 
 **Check.**
@@ -39,18 +39,18 @@ The `starting satld` reset matters: these lines outlive a restart, so a node tha
 | Outcome | Meaning |
 | --- | --- |
 | exactly one node prints `leader` | that is the real leader, whatever the column says |
-| every node prints `unknown` | you are reading only the live file — [the line was rotated](reading-the-log.md#rotation) |
+| every node prints `unknown` | you are reading only the live file; [the line was rotated](reading-the-log.md#rotation) |
 | two nodes print `leader` | one of them has not processed its loss yet; re-read in a few seconds |
 
 **Fix.**
-There is nothing to fix on the cluster — **the column is stale, not the cluster.**
+There is nothing to fix on the cluster; **the column is stale, not the cluster.**
 `Node.ManagerStatus` is written when the cluster forms and is never refreshed on a leadership change, so after a leader dies every node goes on calling it `Leader`, permanently, including after it rejoins as a follower.
 No API surface reports the live Raft leader either.
 
 !!! danger "Never pick a node to act on from that column"
 
     During an incident this reads as "the leader is down, that is why writes fail" when in fact a new leader was elected seconds later and writes are fine.
-    And a runbook that restarts "the leader" from that column restarts the wrong daemon — which is exactly why SatL's own cluster tests read the log instead.
+    And a runbook that restarts "the leader" from that column restarts the wrong daemon, which is exactly why SatL's own cluster tests read the log instead.
 
     Prove leadership by its consequences: a write that commits (a node label set and read back) tells you a leader exists; the log tells you which node it is.
     `STATUS` (`Ready`/`Down`) *is* maintained and can be trusted.
@@ -81,12 +81,12 @@ sudo grep -a -E 'raft leadership|leadership (gained|lost)' /var/log/messages | t
 | Outcome | Meaning |
 | --- | --- |
 | the message clears within seconds | an ordinary election. Nothing to do |
-| a majority of managers is `Down` | **quorum is lost.** Managers alone form quorum — two managers plus a worker tolerate *no* manager failure |
+| a majority of managers is `Down` | **quorum is lost.** Managers alone form quorum; two managers plus a worker tolerate *no* manager failure |
 | every manager is up and no election completes | look for TLS refusals in the log: expired or untrusted certificates stop replication dead ([TLS and joins](tls.md#expired-certs)) |
 
 **Fix.**
 Bring managers back.
-Promotion applies live, so promoting a third manager before taking one down is a viable emergency move — and it is the only reason quorum arithmetic is worth thinking about in advance.
+Promotion applies live, so promoting a third manager before taking one down is a viable emergency move, and it is the only reason quorum arithmetic is worth thinking about in advance.
 
 ## `This node is not a swarm manager.` { #not-a-swarm-manager }
 
@@ -105,21 +105,21 @@ A worker holds no replicated store, so it has nothing to answer with.
 This is Docker's own message, verbatim, with Docker's own 503.
 
 What is refused on a worker: `satl service`, `satl node`, `satl network`
-(**all** of it — a SatL network is a store object even when its driver is
+(**all** of it; a SatL network is a store object even when its driver is
 `bridge`), `satl swarm` inspection and token rotation, and **container
-lifecycle mutations** — create, start, stop, kill, rm, and therefore `satl run`.
+lifecycle mutations**: create, start, stop, kill, rm, and therefore `satl run`.
 
 What still works and shows that node's own containers: `satl ps`, `satl inspect`,
 `satl logs`, `satl wait`, `satl exec`, `satl images`, `satl pull`, `satl volume`.
 
 **Fix.**
-Run the command on a manager, or `satl node promote <node>` — which applies live, with the same daemon pid and without disturbing running containers.
+Run the command on a manager, or `satl node promote <node>`, which applies live, with the same daemon pid and without disturbing running containers.
 
 ??? note "Why container mutations are refused where Docker allows them"
 
     A Docker worker still runs standalone containers.
     SatL has none: every container is a task of a service, and a task mutation is a store write that a worker cannot propose.
-    Run it on a manager and the scheduler places the task — possibly on the very worker you were standing on.
+    Run it on a manager and the scheduler places the task, possibly on the very worker you were standing on.
 
 ## A node reads `Down` { #node-down }
 
@@ -144,7 +144,7 @@ sudo grep -a 'agent session' /var/log/messages | tail -20
 | Outcome | Meaning |
 | --- | --- |
 | `node marked down: heartbeat failure` on a manager | the node's dispatcher session TTL expired. Heartbeat is 5 s and the TTL is 3 × that, so about 15 s of silence |
-| `agent session ended` / `agent session lost; reconnecting` on the node | the node is alive and cannot reach a manager — network, or TLS |
+| `agent session ended` / `agent session lost; reconnecting` on the node | the node is alive and cannot reach a manager, network, or TLS |
 | the daemon is stopped on the node | expected: **stopping `satld` does not stop its containers**, so they keep running as strays until it returns |
 
 **Fix.**
@@ -154,7 +154,7 @@ When it comes back, its agent reaps the containers whose tasks were evicted in t
 !!! note "Its containers were still serving the whole time"
 
     A node going `Down` means the managers stopped hearing from it, not that its workloads stopped.
-    That is why `satl service ls` can legitimately read `8/6` for a while — see the next entry.
+    That is why `satl service ls` can legitimately read `8/6` for a while; see the next entry.
 
 ## `satl service ls` says `8/6` { #replica-count }
 
@@ -164,7 +164,7 @@ A 6-replica service reports more running replicas than it has.
 **Reading.**
 Correct, and temporary.
 The `REPLICAS` column counts observed `Running` tasks against wanted.
-A task on a node that stopped answering keeps its last reported `Running` state — nothing can report otherwise, and the node-down-to-orphaned timer is 24 h — while the manager has already moved its desired state on and scheduled a replacement.
+A task on a node that stopped answering keeps its last reported `Running` state (nothing can report otherwise, and the node-down-to-orphaned timer is 24 h), while the manager has already moved its desired state on and scheduled a replacement.
 
 A **live** task is one whose desired state is `Running` *and* whose current state is `Running`.
 Counting observed `Running` alone says "8 running" for a 6-replica service with one node down, which is not what anyone means.
@@ -213,7 +213,7 @@ satl service ps <service>                       # what did the failed tasks say?
 
 **Reading.**
 With the default `--update-failure-action pause`, a rollout that trips `MaxFailureRatio` stops where it is, on purpose: the updater will not keep feeding replicas to a spec that is failing.
-Everything else about the service keeps working — scale, restart policy, node eviction.
+Everything else about the service keeps working: scale, restart policy, node eviction.
 Only further slots stop being replaced.
 
 **Fix.**
@@ -237,7 +237,7 @@ With `--update-failure-action rollback` the manager does this for you, swapping 
 
     An update takes at least `Monitor` **per batch**.
     SwarmKit starts the next batch as soon as the previous task reaches `RUNNING` and watches for failures in the background; SatL makes the failure-observation window part of the batch.
-    With the defaults — parallelism 1, monitor 5 s — a six-replica update therefore takes at least 30 s.
+    With the defaults (parallelism 1, monitor 5 s) a six-replica update therefore takes at least 30 s.
 
     That is what makes each batch health-gated: a task that fails inside its window is caught before the next slot is disturbed.
     Set `--update-monitor` to a small value to get SwarmKit's pace back.
@@ -260,12 +260,12 @@ task not restarted task_id=… slot=1 state=failed trigger="task terminated" \
 
 **Reading.**
 The restart budget is spent.
-`RestartPolicy.MaxAttempts` counts replacements per replica **and per spec version**, and the count is derived from the store's task history on every pass rather than held in a leader's memory — so it survives a manager restart and a leadership change.
+`RestartPolicy.MaxAttempts` counts replacements per replica **and per spec version**, and the count is derived from the store's task history on every pass rather than held in a leader's memory, so it survives a manager restart and a leadership change.
 A task left terminal at desired `Running` is what "nothing will replace this" looks like.
 It is not a stuck orchestrator.
 
 **Fix.**
-A service update — any new spec version — starts a fresh budget.
+A service update, any new spec version, starts a fresh budget.
 Fix the reason it was crashing first.
 
 ## A drained node came back and stayed empty { #no-rebalance }
@@ -284,7 +284,7 @@ its identity, so a returning node gets a **new** global task on its own, with no
 operator action.
 
 **Fix.**
-Anything that replaces the service's tasks spreads it again — scaling up and back down, or any `satl service update`.
+Anything that replaces the service's tasks spreads it again: scaling up and back down, or any `satl service update`.
 
 ??? note "What a drain does and does not wait for"
 
@@ -294,7 +294,7 @@ Anything that replaces the service's tasks spreads it again — scaling up and b
     Every other eviction pays the delay in full.
     In the log, a drain's evictions read `trigger="node is draining"` with `delay_ms=0`; a `Down` node's read `trigger="node is down"` with the service's own delay; a label change reads `trigger="node no longer satisfies the placement constraints"` with the delay.
 
-    And a global service's task on a draining node is **stopped and not replaced** (`stopping a global task … reason="node is no longer eligible for this global service"`) — there is no other node for it to run on.
+    And a global service's task on a draining node is **stopped and not replaced** (`stopping a global task … reason="node is no longer eligible for this global service"`); there is no other node for it to run on.
     The service simply runs on one node fewer.
 
 ## Editing a node label moved running containers { #label-moves-tasks }
