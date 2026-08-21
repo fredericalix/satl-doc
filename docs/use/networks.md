@@ -37,7 +37,8 @@ $ sudo cat /var/db/satl/net/satl.json
 ```
 
 Overlay networks are different in one respect that matters constantly: an overlay's addressing is allocated cluster-wide in Raft from a separate pool (default `10.100.0.0/14`, /24 per network), but **its gateway address is per node**, not cluster-wide.
-Every participating node's bridge sits on one L2 segment, so a single shared `.1` would be a duplicate address on that segment; the jails would resolve their gateway to whichever node won the ARP race, and that node would then receive everyone's egress traffic and everyone's DNS queries.
+Every participating node's bridge sits on one L2 segment, so a single shared `.1` would be a duplicate address on that segment.
+The jails would resolve their gateway to whichever node won the ARP race, and that node would then receive everyone's egress traffic and everyone's DNS queries.
 
 So `satl network inspect` reports **this node's** gateway on the network, and a node running no task on it reports none at all.
 That is not an inconsistency between nodes; it is the correct answer to a question that has a different answer on each of them.
@@ -134,7 +135,9 @@ It is refused on `bridge` networks and on `ingress` (a truthy `encrypted` there 
 Compose files have no spelling for it yet; create the encrypted network up front and reference it as [`external`](compose.md).
 
 **There are no keys to manage.**
-The cluster generates each encrypted network's keyring itself, keeps it in the encrypted Raft store, delivers it only to nodes that run tasks of that network, a node participating in no encrypted network holds no key material at all, and rotates every ring every 12 hours with no operator action.
+The cluster generates each encrypted network's keyring itself, keeps it in the encrypted Raft store, and delivers it only to nodes that run tasks of that network.
+A node participating in no encrypted network holds no key material at all.
+Every ring rotates every 12 hours, with no operator action.
 No certificates are involved; the control plane's mTLS already existed and is unchanged.
 Each encrypted network also gets its own VTEP UDP port from **4790–4999** (unencrypted networks share 4789, in cleartext), which is what keeps two encrypted networks' keyrings apart on the wire.
 
@@ -151,7 +154,8 @@ The node-side plumbing (the guard anchor, `enc0`, one node-wide sysctl) is insta
 
 !!! warning "Do not create encrypted networks during a rolling manager upgrade"
 
-    The encryption fields ride on the network object in the Raft store, and a manager running an older build strips them when it rewrites the object; every node then reads "not encrypted" and tears its SAs down: a silent downgrade to cleartext, with no error anywhere.
+    The encryption fields ride on the network object in the Raft store, and a manager running an older build strips them when it rewrites the object.
+    Every node then reads "not encrypted" and tears its SAs down: a silent downgrade to cleartext, with no error anywhere.
     Finish the rolling upgrade on **every manager** before creating the first encrypted network.
     An old-build worker shipped an encrypted network fails closed instead: it builds its VTEP on the default port and blackholes until restarted on the new build.
 

@@ -151,7 +151,8 @@ The tell in the log is a task id appearing in a `published ports converged` line
 
 **Fix.**
 There is nothing to configure.
-If you see that signature, a republished task id, it is a defect worth reporting with the log lines; the known cause of it (a manager-side pass republishing a task the store had not yet caught up on) is fixed, and a redirect is now created only for a task whose desired state is still below `SHUTDOWN`.
+If you see that signature, a republished task id, it is a defect worth reporting with the log lines.
+The known cause of it (a manager-side pass republishing a task the store had not yet caught up on) is fixed, and a redirect is now created only for a task whose desired state is still below `SHUTDOWN`.
 
 ??? note "Why one rule and not one per task"
 

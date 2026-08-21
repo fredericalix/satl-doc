@@ -52,7 +52,9 @@ Node state directory, normally the mountpoint of the ZFS root dataset.
 **Type** path.
 **Default** `/var/db/satl`.
 
-Holds this node's identity and everything that is not a container: `certs/` (the node certificate and key, and the cluster trust bundle), `raft/` (the replicated log, its snapshots, and the `dek` file that seals them), the worker's task database, the co-located agent's socket, and, on a worker, its list of managers.
+Holds this node's identity and everything that is not a container.
+That is `certs/` (the node certificate and key, and the cluster trust bundle) and `raft/` (the replicated log, its snapshots, and the `dek` file that seals them).
+It also holds the worker's task database, the co-located agent's socket, and, on a worker, its list of managers.
 
 It should be the mountpoint of [`zfs_root`](#zfs_root).
 When the two disagree `satld` **warns and starts anyway**: they can legitimately differ, but they usually differ by accident, and the warning is the only sign.

@@ -85,7 +85,8 @@ SatL's ingress is that, built out of pf.
 !!! success "The port answers on every manager, replica or not"
 
     The port is allocated centrally, exactly as SwarmKit allocates it, one cluster-wide owner per (protocol, published port), sticky across updates, auto-assigned from 30000–32767 when the request says `0`.
-    Every **manager** redirects it into a pf table holding the live tasks' *overlay* addresses, round-robin: a task on the node itself is reached directly, a task on another node is reached across the overlay, with return-path SNAT so the reply comes back through the relaying manager.
+    Every **manager** redirects it into a pf table holding the live tasks' *overlay* addresses, round-robin.
+    A task on the node itself is reached directly, and a task on another node is reached across the overlay, with return-path SNAT so the reply comes back through the relaying manager.
     Failover is the pool: kill a replica and its address leaves every manager's table within seconds, with no client-visible gap.
 
     **Workers are the exception.**
@@ -171,7 +172,8 @@ would look published and never receive a connection.
     The symptom of a stale entry in a two-address pool is distinctive: connections to one node fail **every other attempt**, in bursts of about five seconds.
     It is worth recognising because it looks like packet loss and is not.
 
-    The historical cause was a manager-side pass republishing a task the manager had already ordered to stop; the node's own agent had removed the redirect, and the pass put it back, because the store's copy of that task was still `RUNNING` for a few hundred milliseconds longer.
+    The historical cause was a manager-side pass republishing a task the manager had already ordered to stop.
+    The node's own agent had removed the redirect, and the pass put it back, because the store's copy of that task was still `RUNNING` for a few hundred milliseconds longer.
     A redirect is now created only for a task whose desired state is still below `SHUTDOWN`, so an ordered stop cannot produce it.
     The grep that identifies it, if it ever comes back, is a task id appearing in a `converged` line *after* its own `removed` line:
 

@@ -1,6 +1,7 @@
 # Containers
 
-Every container in SatL is a task of a service, so the question "why is this container not running?" is nearly always answered in one of three places: the scheduler could not place the task, the node refused to prepare it, or it started and died.
+Every container in SatL is a task of a service, so the question "why is this container not running?" is nearly always answered in one of three places.
+The scheduler could not place the task, the node refused to prepare it, or it started and died.
 All three write their reason into the task, which is what `satl service ps`'s `ERROR` column shows and what `satl ps` renders as an exited container.
 
 Start here:
@@ -352,7 +353,9 @@ sudo grep -a -E 'registry|manifest|platform' /var/log/messages | tail -20
 The three shapes are unrelated.
 
 `error sending request for url (…)` is a transport failure; nothing answered, or answered something that is not HTTP(S).
-Read the URL it prints: `http://127.0.0.1:5000/…` means no registry is running on this node ([A local registry](../start/registry.md) is how one gets there), and an `https://` URL where you configured a plain-HTTP registry means SatL did what it always does off loopback; `localhost`, `127.0.0.1` and `[::1]` are the only hosts contacted without TLS, on any port, and there is no insecure-registry override to turn that off.
+Read the URL it prints.
+`http://127.0.0.1:5000/…` means no registry is running on this node ([A local registry](../start/registry.md) is how one gets there), and an `https://` URL where you configured a plain-HTTP registry means SatL did what it always does off loopback.
+`localhost`, `127.0.0.1` and `[::1]` are the only hosts contacted without TLS, on any port, and there is no insecure-registry override to turn that off.
 
 A platform list that contains nothing this node can run is an image problem, and the message prints exactly what the registry offered.
 An auth failure quotes the challenge it got, including for a repository that does not exist, which Docker Hub answers with `401` rather than `404`, so `authentication failed for library/<something>` usually means a bare image name normalised into `docker.io/library/` where nothing lives.

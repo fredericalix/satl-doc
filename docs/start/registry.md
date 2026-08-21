@@ -28,7 +28,9 @@ There is no such thing as a built-in registry: `127.0.0.1:5000` is only true onc
     Status: Downloaded newer image for docker.io/freebsd/freebsd-runtime:15.1
     ```
 
-    The site uses a local registry for the reasons SatL's own test cluster does: builds stop depending on Docker Hub being up, on its rate limits, and on an upstream tag being rebuilt under you; and each node pulls its base image over loopback instead of the internet.
+    The site uses a local registry for the reasons SatL's own test cluster does.
+    Builds stop depending on Docker Hub being up, on its rate limits, and on an upstream tag being rebuilt under you.
+    Each node pulls its base image over loopback instead of the internet.
     A tag on Docker Hub is mutable (`freebsd-runtime:15.1` is rebuilt for patch releases), so "the same base image on every node" is a property you get by mirroring it once, and not otherwise.
 
 ## Why it is on loopback, and why there is one per node

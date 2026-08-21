@@ -49,7 +49,9 @@ A `service update` that changes only resource limits or reservations does not ro
 See [Resource limits](../use/resource-limits.md#resizing-a-live-service).
 
 **Desired-state orchestration.**
-Restart policies with a max-attempts budget that survives a leader election; rolling updates with Docker's twelve policy flags (parallelism, delay, failure action, monitor window, max failure ratio, stop-first/start-first) and automatic rollback on a failing update; global services; node availability (`active`, `pause`, `drain`); node labels enforced continuously, so editing a label moves running tasks.
+Restart policies with a max-attempts budget that survives a leader election.
+Rolling updates with Docker's twelve policy flags (parallelism, delay, failure action, monitor window, max failure ratio, stop-first/start-first), and automatic rollback on a failing update.
+Global services, node availability (`active`, `pause`, `drain`), and node labels enforced continuously, so editing a label moves running tasks.
 
 **Healthchecks**, with Docker's semantics, and one deliberate difference: a task with a healthcheck is not reported `RUNNING` until a probe passes, and a task that goes unhealthy is stopped and replaced rather than left running.
 That gate is what makes a zero-downtime rolling update possible at all.
@@ -69,7 +71,9 @@ See [Compose files](../use/compose.md).
 `satl system prune` removes stopped containers, unused networks, unreferenced image content and unreferenced layer datasets.
 It is manual, and node-local for everything that costs disk; see [Reclaiming space](../use/reclaiming-space.md).
 
-**Backup and restore of cluster state**, with a measured procedure: a manager's raft directory is its own ZFS dataset, a snapshot of it restores onto that node in seconds, and on a cluster that still has quorum a lost manager is rejoined in about six seconds with no backup at all.
+**Backup and restore of cluster state**, with a measured procedure.
+A manager's raft directory is its own ZFS dataset, and a snapshot of it restores onto that node in seconds.
+On a cluster that still has quorum, a lost manager is rejoined in about six seconds with no backup at all.
 Read [Backup and restore](../cluster/backup-restore.md) before you deploy anything you care about, in particular the part about how many managers to run.
 
 ## What is not built

@@ -117,7 +117,8 @@ Three properties of that picture are load-bearing:
   A follower that receives a mutation forwards it once, with the leader's address in the response metadata.
   Reads are served from the local replica.
 - **The second port exists for one reason.**
-  The mTLS server on 2377 demands a client certificate on every connection, and a node joining for the first time does not have one. 2378 serves the unauthenticated bootstrap: the joiner fetches the root CA and submits a signing request, and pins what it receives against the digest baked into its join token.
+  The mTLS server on 2377 demands a client certificate on every connection, and a node joining for the first time does not have one.
+  2378 serves the unauthenticated bootstrap: the joiner fetches the root CA and submits a signing request, and pins what it receives against the digest baked into its join token.
   You only ever type 2377; `satl swarm join host:2377` derives the other.
 
 ## The loop, once

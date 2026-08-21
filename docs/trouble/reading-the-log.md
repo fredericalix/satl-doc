@@ -111,7 +111,8 @@ Two shapes are therefore bugs to report, never something to work around:
     Without `--log-target syslog` the log travels the way any supervised program's output does: the daemon writes lines to a pipe and `daemon(8) -S` forwards them.
     `daemon(8)` reads that pipe in *chunks* and passes a whole chunk to `syslog(3)` as one message; `syslogd` then rewrites the newlines inside it as spaces.
 
-    Measured on FreeBSD 15.1 against this daemon's own log: **281 of 7252 lines (3.9 %) carried more than one event**, up to eleven, and under `--log-format json` about 3 % of lines were two objects on one line, not JSON, so a consumer doing one `json.loads` per line fails on them.
+    Measured on FreeBSD 15.1 against this daemon's own log: **281 of 7252 lines (3.9 %) carried more than one event**, up to eleven.
+    Under `--log-format json`, about 3 % of lines were two objects on one line, not JSON, so a consumer doing one `json.loads` per line fails on them.
     A synthetic burst of 400 lines through `daemon -S` was worse: 138 lines carrying 174 records, up to 19 per line, and **more than half the records lost outright**, because merging inflates each datagram until it overruns `syslogd`'s 16 KiB receive buffer.
     The same 400 lines through `logger(1)`, which calls `syslog(3)` once per line, arrived complete.
 

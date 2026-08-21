@@ -87,7 +87,8 @@ ENTRYPOINT ["/usr/local/sbin/nginx", "-g", "daemon off;"]
 sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-nginx:latest
 ```
 
-It needs root (packages are installed into the rootfs with `pkg --rootdir`, and the linker hints are baked with a `chroot`ed `ldconfig`), and network access on the first run; the build pulls the `FROM` image from the local registry and fetches packages from the FreeBSD package mirror.
+It needs root (packages are installed into the rootfs with `pkg --rootdir`, and the linker hints are baked with a `chroot`ed `ldconfig`), and network access on the first run.
+The build pulls the `FROM` image from the local registry and fetches packages from the FreeBSD package mirror.
 The result registers into **this node's** image store directly, under the tag you gave `-t`; it is not pushed anywhere and no other node gains it.
 The details are in [Images](../use/images.md#satl-build).
 

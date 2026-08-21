@@ -134,7 +134,9 @@ containers that talk to each other and to nothing else.
 ## Networking
 
 `network_name` (default `satl`) names the node-local bridge network containers attach to.
-It does three jobs at once, which is what makes it more consequential than it looks: it is the network's name in `satl network ls`, it names the bridge interface with a `0` appended (`satl` → `satl0`), and it is the `ifconfig(8)` **interface group** SatL marks every interface it creates with.
+It does three jobs at once, which is what makes it more consequential than it looks.
+It is the network's name in `satl network ls`, and it names the bridge interface with a `0` appended (`satl` → `satl0`).
+It is also the `ifconfig(8)` **interface group** SatL marks every interface it creates with.
 
 That third job is the trap.
 
@@ -174,7 +176,8 @@ With no egress interface at all, no NAT rule is generated and the failure is asy
 Every node listens, worker or manager: a manager needs it for its peers, and a single-node cluster needs it for the nodes that will join it later.
 
 `satld` also binds **the next port up** (2378 by default) for the unauthenticated node-CA bootstrap endpoint.
-A node that has never joined has no certificate to present, so it cannot complete the mTLS handshake on 2377; it fetches the root CA and submits its signing request on 2378 instead, and pins what it receives against the digest baked into its join token.
+A node that has never joined has no certificate to present, so it cannot complete the mTLS handshake on 2377.
+It fetches the root CA and submits its signing request on 2378 instead, and pins what it receives against the digest baked into its join token.
 Both ports must be reachable from every other node.
 An operator only ever types the first one; `satl swarm join host:2377` derives the second itself.
 
@@ -187,7 +190,9 @@ A bare address is accepted and gets `listen_addr`'s port, so `advertise_addr = "
 
     The node still starts and still joins.
     The leader substitutes the address it observes the node connecting from, which is usually right and is never authoritative.
-    The one place it matters beyond Raft is the VXLAN overlay: a node's tunnel endpoint is taken from what the node says about itself first, and only falls back to the observed control-plane address, which equals the underlay only for as long as agents happen to reach their managers over the underlay.
+    The one place it matters beyond Raft is the VXLAN overlay.
+    A node's tunnel endpoint is taken from what the node says about itself first, and only falls back to the observed control-plane address.
+    That fallback equals the underlay only for as long as agents happen to reach their managers over the underlay.
     A tunnel endpoint taken from that fallback is logged with a warning, because a wrong one does not fail loudly: the tunnel comes up, reports `RUNNING`, and carries nothing.
 
 ## The keys you will probably never set

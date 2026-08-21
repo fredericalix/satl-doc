@@ -175,7 +175,8 @@ EXPOSE 8080/tcp
 ENTRYPOINT ["/usr/local/bin/node", "/srv/app/server.js"]
 ```
 
-What the build does: pulls the base into the local store, unpacks its layers, `pkg --rootdir install` for each `PKG`, bakes `/var/run/ld-elf.so.hints` with `ldconfig` (a jail never runs `rc`; without the hints, pkg-installed binaries die on missing shared objects), runs the COPY/RUN steps, and repacks a `freebsd/amd64` OCI image.
+What the build does: pulls the base into the local store, unpacks its layers, `pkg --rootdir install` for each `PKG`, bakes `/var/run/ld-elf.so.hints` with `ldconfig`, runs the COPY/RUN steps, and repacks a `freebsd/amd64` OCI image.
+The hints are baked because a jail never runs `rc`; without them, pkg-installed binaries die on missing shared objects.
 It runs **on the daemon's host, as root**, against the local content store; this is not Docker's `POST /build`, which does not exist here and answers `404`.
 
 The image is **multi-layered**: the base's layers plus one layer per mutating step (the `PKG` group, each `COPY`, each `RUN`), diffed between steps with whiteouts for deletions.
@@ -219,7 +220,8 @@ What happens next depends on what answers them, and the two cases are nothing al
 | **nothing listening at all** | the task retries the pull **every second, forever**, and stays in `PREPARING` |
 
 The second case is the one that costs an afternoon, and `127.0.0.1:5000` on a node with no registry is exactly it.
-A connection error is a *transient* failure by classification (the right call for a registry that is briefly down, and indistinguishable from one that was never there), so the task never fails, the restart supervisor never fires, `satl service ls` reports `0/3` or `1/3` indefinitely, and the helpful message above is never printed.
+A connection error is a *transient* failure by classification: the right call for a registry that is briefly down, and indistinguishable from one that was never there.
+So the task never fails, the restart supervisor never fires, `satl service ls` reports `0/3` or `1/3` indefinitely, and the helpful message above is never printed.
 
 `satl service ps <service>` shows the tasks stuck in `PREPARING`; the node's log has the pull error, once per attempt.
 
@@ -242,7 +244,8 @@ node, including the sharing.
 !!! warning "Reclamation is manual, and it is per node"
 
     `satl system prune` removes unreferenced image content and unreferenced layer datasets.
-    Nothing runs it for you: there is no background collector and no timer, so **a node that pulls new tags for long enough and is never pruned will fill its pool**, and the first symptom is `satld` failing to clone a rootfs for a container that was just scheduled onto it.
+    Nothing runs it for you: there is no background collector and no timer, so **a node that pulls new tags for long enough and is never pruned will fill its pool**.
+    The first symptom is `satld` failing to clone a rootfs for a container that was just scheduled onto it.
 
     It also reclaims **one node**: images and layers live on the node that pulled
     them, so a prune answered by one manager leaves every other node exactly as it

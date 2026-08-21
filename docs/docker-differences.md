@@ -25,7 +25,8 @@ Everything below is organised by what you are trying to do.
   Otherwise the node advertises the interface carrying its default route, which on a cloud instance is usually the public NIC rather than the private underlay you meant.
 - **`swarm init --force-new-cluster` answers `501`, permanently.**
   Docker rebuilds a swarm from one surviving manager's state by discarding the other members.
-  Here a manager that still has its raft directory resumes on a plain restart, and one that has lost it has nothing to force from, so the recovery is a [restore or a rejoin](cluster/backup-restore.md), and a cluster that has permanently lost quorum cannot be repaired from inside.
+  Here a manager that still has its raft directory resumes on a plain restart, and one that has lost it has nothing to force from, so the recovery is a [restore or a rejoin](cluster/backup-restore.md).
+  A cluster that has permanently lost quorum cannot be repaired from inside.
 - Join tokens are spelled `SATL-1-<digest>-<secret>`.
   Tooling that pattern-matches Docker's `SWMTKN` will not recognise them.
 - The internal protocol binds **two** ports, `2377` and `2378`, where Docker uses `2377` alone.
@@ -108,7 +109,9 @@ Everything below is organised by what you are trying to do.
 - **`connect` and `disconnect` are refused** (`501`).
   A task's attachments are allocated once, at creation, and its spec is immutable, so hot-plugging a network means replacing the task, i.e. a different container ID than the one you named.
 - Rejected with `400` rather than accepted and ignored: `EnableIPv6` and any IPv6 subnet, `Internal`, `Attachable`, `ConfigOnly`/`ConfigFrom`, any driver option other than `encrypted`, `IPAM.Options`, more than one IPAM config entry, and a second `ingress` network.
-  `encrypted`: Docker's `--opt encrypted`, is the one driver option SatL reads, and only on the `overlay` driver: `{"encrypted": "true"}` encrypts the VXLAN data plane between nodes (see [Networks](use/networks.md#encrypted)), `"false"` is accepted and means no encryption, and any other value is a `400`, as is a truthy `encrypted` on a `bridge` network or on `ingress`.
+  `encrypted`: Docker's `--opt encrypted`, is the one driver option SatL reads, and only on the `overlay` driver.
+  `{"encrypted": "true"}` encrypts the VXLAN data plane between nodes (see [Networks](use/networks.md#encrypted)), and `"false"` is accepted and means no encryption.
+  Any other value is a `400`, as is a truthy `encrypted` on a `bridge` network or on `ingress`.
   The `satl` CLI also normalizes a bare `--opt encrypted` (no `=value`) to `encrypted=true`, matching Docker muscle memory; a raw API client sending an empty value still gets the `400`.
 - **Removing a network in use is a `409`**, and "in use" includes a service whose task template merely references it; its next task could not be placed.
   Terminal tasks do not block removal, where Docker counts a stopped container's endpoint.
@@ -145,7 +148,9 @@ Everything below is organised by what you are trying to do.
   Consequence: a container that never becomes healthy *fails* rather than staying `starting` forever.
   `start_period` is the only grace.
 - **A service that publishes a port gets tighter defaults**, and only there: 5 s interval, 3 s timeout and 2 retries instead of Docker's 30/30/3, applied field by field and only where you left the field unset.
-  Docker applies its defaults identically whatever the service publishes, and *at probe time*; SatL writes the effective values into the stored spec, so `inspect` shows the numbers the prober will use, and they then look explicit, so removing the published port later does not restore 30 s. What that buys is ~10 s out of the traffic pool instead of ~90; what it costs is that here, leaving the pool and being killed are the same event.
+  Docker applies its defaults identically whatever the service publishes, and *at probe time*.
+  SatL writes the effective values into the stored spec, so `inspect` shows the numbers the prober will use, and they then look explicit, so removing the published port later does not restore 30 s.
+  What that buys is ~10 s out of the traffic pool instead of ~90; what it costs is that here, leaving the pool and being killed are the same event.
 - **A published service with no healthcheck at all is a warning** at create and update, in the `Warnings` array and in the log.
   Docker warns about nothing here.
   `satl run -p` is deliberately *not* warned; the container API reads no healthcheck at all, so there would be no way to comply.
@@ -160,7 +165,9 @@ Everything below is organised by what you are trying to do.
 
 - **A flag you do not pass keeps the value the service already has.**
   `update` reads the stored spec, changes what you named, and posts the whole document back.
-  But **naming one flag of a half names that whole half**: a service with no policy at all, updated with a lone `--update-monitor 30s`, gets the defaults for the other five fields of `UpdateConfig`, because parallelism 0 means "replace every slot at once" and must never be arrived at by omission.
+  But **naming one flag of a half names that whole half**.
+  A service with no policy at all, updated with a lone `--update-monitor 30s`, gets the defaults for the other five fields of `UpdateConfig`.
+  It has to: parallelism 0 means "replace every slot at once", and that must never be arrived at by omission.
 - **An update takes at least `Monitor` per batch.**
   SwarmKit starts the next batch as soon as the previous task reaches `RUNNING` and watches for failures in the background; SatL makes the observation window part of the batch.
   With the defaults that means a six-replica update takes at least 30 s. Set a small `--update-monitor` to get SwarmKit's pace back.
@@ -292,4 +299,5 @@ Those and their consequences are on their own page, [What SatL does not do](refe
 !!! info "The exhaustive list lives in SatL's source tree"
 
     This page is the shape of the differences, chosen for what a Docker user trips over.
-    Every intentional deviation is recorded, numbered and dated in `docs/api-compat.md` in the SatL repository, in the same change that introduced it; that file is the contract, and it is where to look when you need the exact wording of a refusal or the reasoning behind one.
+    Every intentional deviation is recorded, numbered and dated in `docs/api-compat.md` in the SatL repository, in the same change that introduced it.
+    That file is the contract, and it is where to look when you need the exact wording of a refusal or the reasoning behind one.

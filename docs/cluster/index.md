@@ -33,7 +33,9 @@ That is the whole difference, and every worker-side surprise follows from it.
 
 --8<-- "ops-manager-only.md"
 
-Which means the list of things a worker cannot answer is longer than a Docker user expects; it includes all of `satl network`, because a SatL network is a store object even when its driver is `bridge`, and it includes container lifecycle mutations, because every container is a task of a service and creating one is a store write.
+Which means the list of things a worker cannot answer is longer than a Docker user expects.
+It includes all of `satl network`, because a SatL network is a store object even when its driver is `bridge`.
+It includes container lifecycle mutations too, because every container is a task of a service and creating one is a store write.
 The full list, with what still works, is under [`This node is not a swarm manager.`](../trouble/cluster.md#not-a-swarm-manager).
 
 Reads on a follower come from that follower's own applied state, which can lag the leader by a round trip.
@@ -53,7 +55,8 @@ satl swarm join-token --rotate worker   # invalidate the old one
 
 The format is `SATL-1-<digest>-<secret>`, and both halves earn their place.
 The `secret` is 16 bytes of CSPRNG, compared in constant time.
-The `digest` is a SHA-256 over the **whole** root CA bundle, which is what makes the first contact safe: a joiner downloads the trust bundle from a manager it cannot yet authenticate, hashes it, and refuses to go on unless the hash matches the token it was given.
+The `digest` is a SHA-256 over the **whole** root CA bundle, and that is what makes the first contact safe.
+A joiner downloads the trust bundle from a manager it cannot yet authenticate, hashes it, and refuses to go on unless the hash matches the token it was given.
 Hashing the whole bundle rather than one certificate is deliberate; it catches a man in the middle *appending* a root of its own, which pinning a single certificate would not.
 
 Two consequences to plan around:
@@ -247,7 +250,9 @@ satl ca                 # the root certificate(s) this cluster trusts
 satl ca rotate
 ```
 
-Two failure modes are worth knowing exist before you meet them: a node that was **offline across a root rotation** chains to a root nobody trusts any more and must rejoin ([`refused an internal TLS connection`](../trouble/tls.md#refused-tls)), and an **expired** certificate breaks nothing until the first reconnect, at which point everything fails at once and looks like a network event ([everything fails at once](../trouble/tls.md#expired-certs)).
+Two failure modes are worth knowing exist before you meet them.
+A node that was **offline across a root rotation** chains to a root nobody trusts any more and must rejoin ([`refused an internal TLS connection`](../trouble/tls.md#refused-tls)).
+An **expired** certificate breaks nothing until the first reconnect, at which point everything fails at once and looks like a network event ([everything fails at once](../trouble/tls.md#expired-certs)).
 A rotation also waits for every node the store still lists, so a node that is down [holds it open](../trouble/tls.md#rotation-stuck).
 
 ## Locking the managers

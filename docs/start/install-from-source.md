@@ -1,7 +1,9 @@
 # Install from source
 
 The [package](install.md#5-install-satl) is the ordinary way in, and if you have no reason to prefer this one, prefer that one.
-Two reasons make this page the right path: you want a fix that is not in a release yet, or you want to **build the package yourself**, for a cluster, for a host whose FreeBSD differs from the published build's, or simply because you would rather install something you compiled.
+Two reasons make this page the right path.
+The first: you want a fix that is not in a release yet.
+The second: you want to **build the package yourself**, for a cluster, for a host whose FreeBSD differs from the published build's, or simply because you would rather install something you compiled.
 
 The host preparation is identical either way.
 Only the step that puts the binaries on disk is different, so this page replaces [step 5 of Install](install.md#5-install-satl) and nothing else on it.

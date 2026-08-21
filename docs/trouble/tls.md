@@ -172,7 +172,8 @@ Otherwise fix what the renewal error names; the certificate stays valid for a lo
 
 ??? note "How renewal is supposed to work"
 
-    Every node's certificate is renewed automatically at a random point in 50–80 % of its validity (90 days by default, so roughly a 50–70 day event), re-issued from the cluster root held in the Raft store, written to `<state_dir>/certs`, and **swapped into the live TLS configuration in the same breath**.
+    Every node's certificate is renewed automatically at a random point in 50–80 % of its validity (90 days by default, so roughly a 50–70 day event).
+    It is re-issued from the cluster root held in the Raft store, written to `<state_dir>/certs`, and **swapped into the live TLS configuration in the same breath**.
     No restart, ever: listeners and outbound channels resolve their certificate per handshake, so the very next connection presents the new one.
     Role changes ride the same mechanism, since the role *is* the certificate's OU.
 

@@ -53,7 +53,8 @@ If you edit `command_args` for any reason, keep it.
 
 With the flag, `satld` hands each log event to `syslogd` itself, as its own datagram.
 **One event, one line.**
-Without it, the daemon's output travels the way any supervised program's output does (written to a pipe, forwarded by `daemon(8) -S`), and that path merges events: `daemon(8)` reads the pipe in chunks and hands a whole chunk to `syslog(3)` as a single message, and `syslogd` then rewrites the newlines inside it as *spaces*.
+Without it, the daemon's output travels the way any supervised program's output does (written to a pipe, forwarded by `daemon(8) -S`), and that path merges events.
+`daemon(8)` reads the pipe in chunks and hands a whole chunk to `syslog(3)` as a single message, and `syslogd` then rewrites the newlines inside it as *spaces*.
 Two events written microseconds apart by two of the daemon's threads arrive joined onto one line.
 
 !!! danger "This is measured, not theoretical"
