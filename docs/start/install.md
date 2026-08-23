@@ -12,7 +12,7 @@ Everything here assumes you have been through
 
 ```sh
 fetch https://docs.satl.cc/install-satl.sh
-sh install-satl.sh --pkg ./satl-0.1.0.pkg          # as root
+sh install-satl.sh --pkg https://satl.cc/download/satl-freebsd.pkg          # as root
 ```
 
 Two steps rather than a pipe into `sh`, for the same reason step 5 downloads the package before installing it: you get to read what you are about to run.
