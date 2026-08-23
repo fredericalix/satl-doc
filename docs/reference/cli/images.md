@@ -3,10 +3,31 @@
 
 # `satl images` { #satl-images }
 
-List images
+List images, or manage them (`ls`, `rm`, `prune`, `inspect`).
+
+Bare `satl images` is docker's `docker images`. The subcommands are
+SatL's own spelling -- docker has `docker image rm`, never
+`docker images rm` (docs/api-compat.md 154).
 
 ```console
 $ satl images [OPTIONS]
+```
+
+`satl images` is valid on its own — the subcommand is optional (`[COMMAND]` in the usage line above). Its own options are listed first, its subcommands after.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>--no-trunc</code> | Don't truncate output |
+| <code>-q, --quiet</code> | Only show image IDs |
+
+## `satl images ls` { #satl-images-ls }
+
+List images
+
+```console
+$ satl images ls [OPTIONS]
 ```
 
 **Options**
@@ -15,6 +36,56 @@ $ satl images [OPTIONS]
 | --- | --- |
 | <code>--no-trunc</code> | Don't truncate output |
 | <code>-q, --quiet</code> | Only show image IDs |
+
+## `satl images rm` { #satl-images-rm }
+
+Remove one or more images
+
+```console
+$ satl images rm [OPTIONS] <IMAGE>...
+```
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| <code>&lt;IMAGE&gt;...</code> | Images to remove: a reference, an image ID, or an ID prefix |
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>-f, --force</code> | Force removal of the image |
+| <code>--no-prune</code> | Do not reclaim layers and content. Skips the two agreeing passes and the second and a half they take (docs/api-compat.md 155) |
+
+## `satl images prune` { #satl-images-prune }
+
+Remove unused images
+
+```console
+$ satl images prune [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>-a, --all</code> | Remove all unused images, not just dangling content |
+| <code>-f, --force</code> | Do not prompt for confirmation |
+
+## `satl images inspect` { #satl-images-inspect }
+
+Return low-level information on images
+
+```console
+$ satl images inspect [OPTIONS] <IMAGE>...
+```
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| <code>&lt;IMAGE&gt;...</code> | Images to inspect |
 
 ## Global options { #global-options }
 

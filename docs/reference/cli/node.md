@@ -25,6 +25,27 @@ $ satl node ls [OPTIONS]
 | --- | --- |
 | <code>-q, --quiet</code> | Only display IDs |
 
+## `satl node ps` { #satl-node-ps }
+
+List the tasks running on one or more nodes
+
+```console
+$ satl node ps [OPTIONS] [NODE]...
+```
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| <code>[NODE]...</code> | Nodes whose tasks to list; defaults to this one, as docker does<br>Default: <code>self</code> |
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>--no-trunc</code> | Don't truncate output |
+| <code>-q, --quiet</code> | Only display task IDs |
+
 ## `satl node inspect` { #satl-node-inspect }
 
 Display detailed information on one or more nodes

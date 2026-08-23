@@ -46,6 +46,20 @@ $ satl volume create [OPTIONS] [VOLUME]
 | <code>-d, --driver &lt;DRIVER&gt;</code> | Specify volume driver name |
 | <code>--label &lt;KEY=VALUE&gt;</code> | Set metadata for a volume |
 
+## `satl volume inspect` { #satl-volume-inspect }
+
+Display detailed information on one or more volumes
+
+```console
+$ satl volume inspect [OPTIONS] <VOLUME>...
+```
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| <code>&lt;VOLUME&gt;...</code> | Volumes to inspect |
+
 ## `satl volume rm` { #satl-volume-rm }
 
 Remove one or more volumes
@@ -65,6 +79,20 @@ $ satl volume rm [OPTIONS] <VOLUME>...
 | Option | Description |
 | --- | --- |
 | <code>-f, --force</code> | Force the removal of one or more volumes |
+
+## `satl volume prune` { #satl-volume-prune }
+
+Remove all unused local volumes
+
+```console
+$ satl volume prune [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>-f, --force</code> | Do not prompt for confirmation |
 
 ## Global options { #global-options }
 

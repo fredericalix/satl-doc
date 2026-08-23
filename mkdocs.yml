@@ -225,15 +225,19 @@ nav:
           - satl wait: reference/cli/wait.md
           - satl logs: reference/cli/logs.md
           - satl exec: reference/cli/exec.md
+          - satl container: reference/cli/container.md
           - satl inspect: reference/cli/inspect.md
           - satl pull: reference/cli/pull.md
           - satl push: reference/cli/push.md
           - satl tag: reference/cli/tag.md
           - satl build: reference/cli/build.md
           - satl images: reference/cli/images.md
+          - satl rmi: reference/cli/rmi.md
           - satl volume: reference/cli/volume.md
           - satl network: reference/cli/network.md
           - satl system: reference/cli/system.md
+          - satl info: reference/cli/info.md
+          - satl events: reference/cli/events.md
           - satl swarm: reference/cli/swarm.md
           - satl ca: reference/cli/ca.md
           - satl node: reference/cli/node.md

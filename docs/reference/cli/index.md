@@ -21,11 +21,15 @@ $ satl [OPTIONS] <COMMAND>
 | [`satl logs`](logs.md) | Fetch the logs of a container |
 | [`satl exec`](exec.md) | Execute a command in a running container |
 | [`satl inspect`](inspect.md) | Return low-level information on containers |
+| [`satl events`](events.md) | Get real-time events from the daemon. |
+| [`satl info`](info.md) | Display system-wide information about this node's daemon |
 | [`satl pull`](pull.md) | Download an image from a registry |
 | [`satl push`](push.md) | Push an image from this node's store to a registry (client-side, like `satl build`) |
 | [`satl tag`](tag.md) | Create a tag `TARGET_IMAGE` that refers to `SOURCE_IMAGE` |
 | [`satl build`](build.md) | Build a FreeBSD image from a Satlfile into this node's store |
-| [`satl images`](images.md) | List images |
+| [`satl images`](images.md) | List images, or manage them (`ls`, `rm`, `prune`, `inspect`). |
+| [`satl rmi`](rmi.md) | Remove one or more images. Alias of `satl images rm`, which is the canonical spelling; docker keeps `rmi` for the same reason |
+| [`satl container`](container.md) | Manage containers -- the verbs that have no top-level spelling. |
 | [`satl volume`](volume.md) | Manage volumes |
 | [`satl network`](network.md) | Manage networks |
 | [`satl system`](system.md) | Manage SatL itself |

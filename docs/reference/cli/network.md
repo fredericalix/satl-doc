@@ -78,6 +78,20 @@ $ satl network rm [OPTIONS] <NETWORK>...
 | --- | --- |
 | <code>&lt;NETWORK&gt;...</code> | Networks to remove |
 
+## `satl network prune` { #satl-network-prune }
+
+Remove all unused networks
+
+```console
+$ satl network prune [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| <code>-f, --force</code> | Do not prompt for confirmation |
+
 ## Global options { #global-options }
 
 Accepted by every `satl` command.
