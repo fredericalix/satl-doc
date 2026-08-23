@@ -174,7 +174,8 @@ One tolerates none, and its Raft directory is the only copy of everything the cl
 
 !!! danger "Two managers are the worst of both"
 
-    Quorum is 2 of 2, so losing either one stops every write **and** leaves the survivor in a state that cannot be repaired from inside the cluster: it cannot admit a replacement, and `--force-new-cluster` does not exist here.
+    Quorum is 2 of 2, so losing either one stops every write **and** leaves the survivor in a state that cannot be repaired from inside the cluster: it cannot admit a replacement.
+    `--force-new-cluster` is no way out either: the CLI accepts it and [the daemon refuses it](../reference/out-of-scope.md#no-backup), with the recovery procedure in its error text.
 
     Run one manager and back it up, or run three and back up two.
     Never two.
