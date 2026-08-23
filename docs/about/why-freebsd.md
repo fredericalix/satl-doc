@@ -108,14 +108,10 @@ column so you always know which one you got.
 
 ```console
 $ satl images
-REPOSITORY                               TAG      IMAGE ID       CREATED        SIZE      PLATFORM
-127.0.0.1:5000/satl-test/alpine          latest   79ff19e9084a   56 years ago   3.846MB   linux/amd64
-127.0.0.1:5000/satl-test/freebsd-nginx   latest   af645a19660d   56 years ago   15.63MB   freebsd/amd64
+REPOSITORY                                 TAG      IMAGE ID       CREATED          SIZE      PLATFORM
+127.0.0.1:5000/satl-test/freebsd-nginx     latest   bcb22faec435   19 minutes ago   16.73MB   freebsd/amd64
+docker.io/library/alpine                   latest   79ff19e9084a   2 months ago     3.846MB   linux/amd64
 ```
-
-("56 years ago" is not a property of these two images. The daemon records no
-creation timestamp, so [every image reads as the
-epoch](../use/images.md#references); `SIZE` and `PLATFORM` are real.)
 
 It needs `linux.ko` loaded and brings its own limits: an image that expects cgroups, or that runs `systemd` as its entrypoint, is rejected with a clear error rather than started half-way.
 In practice a musl or glibc userland that just runs a binary works; a distribution image that wants to boot does not.

@@ -71,8 +71,8 @@ pkg install docker-registry skopeo
 
 ## 2. Write its config
 
-The package ships a `config.yml.sample` with htpasswd auth enabled.
-Replace it wholesale:
+The package installs `config.yml.sample` and a live `config.yml` copied from it, so the service starts without any edit: htpasswd auth on, listening on **every** interface (`addr: :5000`), storage under `/var/lib/registry`.
+Replace the copy wholesale:
 
 ```yaml title="/usr/local/etc/docker-registry/config.yml"
 # Local base-image registry: loopback only, no auth, no TLS.
@@ -205,12 +205,12 @@ Digest: sha256:7673c9e4106e295d22da6b91b6b7570dd48814e0d71811cd9d0ea1ae5be3ef96
 Status: Downloaded newer image for 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
 
 $ satl images
-REPOSITORY                                 TAG      IMAGE ID       CREATED        SIZE      PLATFORM
-127.0.0.1:5000/satl-test/freebsd-runtime   15.1     7673c9e4106e   56 years ago   12.58MB   freebsd/amd64
+REPOSITORY                                 TAG    IMAGE ID       CREATED        SIZE      PLATFORM
+127.0.0.1:5000/satl-test/freebsd-runtime   15.1   7673c9e4106e   2 months ago   12.58MB   freebsd/amd64
 ```
 
 `(freebsd/amd64)` on the digest line is platform selection picking the native manifest out of the index; the arm64 one is in there too, and would be chosen on an arm64 host.
-"56 years ago" is the epoch: these images carry no creation timestamp, and [every image reads that way](../use/images.md#references).
+`CREATED` is the image's own creation date; an image pulled into an older store can [show the epoch instead](../use/images.md#references).
 
 You now have what [Your first container](first-container.md) step 3 assumes.
 
