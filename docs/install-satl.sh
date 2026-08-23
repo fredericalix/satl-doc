@@ -817,7 +817,7 @@ REGCONF
 
 	# The redirection is load-bearing over ssh: without it the session hangs
 	# on the daemon's inherited descriptors.
-	service docker_registry start >/dev/null 2>&1 || true
+	service docker_registry start || true
 
 	# daemon(8) returns before the registry has bound its socket -- measured
 	# on a test VM, the log said "listening on 127.0.0.1:5000" two seconds
