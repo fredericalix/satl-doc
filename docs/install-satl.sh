@@ -39,7 +39,7 @@
 # Run it as root, in two steps, so you can see what you are about to run:
 #
 #     fetch https://docs.satl.cc/install-satl.sh
-#     sh install-satl.sh --pkg ./satl-0.1.0.pkg
+#     sh install-satl.sh --pkg https://satl.cc/download/satl-freebsd.pkg
 #
 # `sh install-satl.sh --help` for the flags.
 
@@ -770,8 +770,13 @@ step_registry() {
 	mkdir -p "$REGISTRY_ROOT"
 	mkdir -p "$REGISTRY_CONF_DIR"
 
-	if [ -f "$REGISTRY_CONF" ]; then
-		skip "$REGISTRY_CONF exists; not overwritten"
+	# The package installs config.yml as a copy of config.yml.sample: htpasswd
+	# auth on, listening on EVERY interface, storage under /var/lib/registry.
+	# An unmodified copy is the package default, not a decision, so it is
+	# replaced; a config.yml that differs from the sample is yours and is kept.
+	_wrote_conf=0
+	if [ -f "$REGISTRY_CONF" ] && ! cmp -s "$REGISTRY_CONF" "$REGISTRY_CONF.sample" 2>/dev/null; then
+		skip "$REGISTRY_CONF differs from the package sample; not overwritten"
 	else
 		cat >"$REGISTRY_CONF" <<'REGCONF'
 # Local base-image registry: loopback only, no auth, no TLS.
@@ -806,6 +811,7 @@ health:
     threshold: 3
 REGCONF
 		ok "wrote $REGISTRY_CONF (loopback, no auth, delete enabled)"
+		_wrote_conf=1
 	fi
 
 	if [ "$(sysrc -n docker_registry_enable 2>/dev/null || echo NO)" = YES ]; then
@@ -815,9 +821,16 @@ REGCONF
 		ok "docker_registry_enable=YES"
 	fi
 
-	# The redirection is load-bearing over ssh: without it the session hangs
-	# on the daemon's inherited descriptors.
-	service docker_registry start || true
+	# The redirection is load-bearing over ssh: the rc.d script starts the
+	# registry under daemon(8) without -f, so it holds the stdout/stderr it
+	# was started with and an unredirected ssh session never returns.
+	# A restart when the config was just rewritten, so a registry already
+	# running on the package default picks the loopback config up.
+	if [ "$_wrote_conf" = 1 ] && service docker_registry status >/dev/null 2>&1; then
+		service docker_registry restart >/dev/null 2>&1 || true
+	else
+		service docker_registry start >/dev/null 2>&1 || true
+	fi
 
 	# daemon(8) returns before the registry has bound its socket -- measured
 	# on a test VM, the log said "listening on 127.0.0.1:5000" two seconds
@@ -993,7 +1006,11 @@ step_reboot() {
 	yes) ok "rebooting now"; shutdown -r now ;;
 	no) note "not rebooting (--no-reboot). Reboot when convenient." ;;
 	ask)
-		if confirm n "Reboot now?"; then
+		if [ ! -t 0 ]; then
+			# Everything above succeeded; a question with a safe default
+			# is no reason to exit 1 under a provisioning tool.
+			note "no terminal to ask on; not rebooting. Reboot when convenient, or pass --reboot."
+		elif confirm n "Reboot now?"; then
 			ok "rebooting now"
 			shutdown -r now
 		else
