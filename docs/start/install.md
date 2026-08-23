@@ -80,14 +80,26 @@ See [Requirements](requirements.md#the-reboot-and-deferring-it) for what you los
 
 ## 5. Install SatL
 
-Download the package and add it:
+Install the runtime, then download the package and add it:
 
 ```sh
+pkg install ocijail
 fetch https://satl.cc/download/satl-freebsd.pkg
-pkg add ./satl-freebsd.pkg          # pulls ocijail if a pkg repository is configured
+pkg add ./satl-freebsd.pkg
 ```
 
-Two steps rather than one so you can see the file land before anything installs,
+`ocijail` comes first because `pkg add` installs the file it is given and nothing else: it never resolves a dependency from a repository, however well configured the repository is.
+Skip it and the install refuses, measured on a stock 15.1 host:
+
+```console
+$ pkg add ./satl-freebsd.pkg
+Installing satl-0.1.0...
+pkg: Missing dependency 'ocijail'
+
+Failed to install the following 1 package(s): ./satl-freebsd.pkg
+```
+
+Fetch and add stay two steps rather than one so you can see the file land before anything installs,
 and so you can check it, keep it, or copy it to the other nodes of a cluster
 instead of downloading it three times.
 
@@ -193,8 +205,10 @@ The daemon's log is the only place its output lands, under the tag `satld`, in
 `/var/log/messages` and `/var/log/daemon.log`.
 
 ```sh
-grep -a satld /var/log/messages | tail -40
+grep -a satld /var/log/messages | grep -av openraft | tail -40
 ```
+
+The `grep -av openraft` matters on a first start: the embedded raft library logs its own startup at `INFO` under the same tag, verbosely enough to push every line below out of a bare `tail -40`.
 
 !!! tip "Always `grep -a`"
 
@@ -266,6 +280,8 @@ Server:
  Engine:
   Version:          0.1.0
   API version:      1.43 (minimum version 1.24)
+  Git commit:       61ebdce
+  Built:            2026-08-21T08:22:09Z
   OS/Arch:          freebsd/amd64
   Kernel Version:   15.1-RELEASE-p2
 
