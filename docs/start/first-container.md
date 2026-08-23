@@ -36,7 +36,7 @@ platform selection choosing the only platform this image offers.
 | --- | --- |
 | `Error response from daemon:` about a missing image | the registry is unreachable; check `net.inet.ip.forwarding` and the `satl/nat` anchor; a container that cannot reach a registry is usually a host that cannot forward |
 | the task reaches `PREPARING` and fails | `ocijail` is not installed, or `satld` is not running as root |
-| an error naming `linux.ko` | `kldload linux`, and add `linux_load="YES"` to `/boot/loader.conf` |
+| `no matching platform for freebsd/amd64 in docker.io/library/alpine:latest` | the linuxulator is off, so `linux/amd64` is never a candidate. [Enable it](../use/linux-containers.md#preparing-the-host), then `service satld restart`: the daemon probes for the emulation at startup only |
 
 The daemon's log has the failing command line and its stderr; the CLI has the summary.
 Read the log:
@@ -66,8 +66,9 @@ That is not a cosmetic detail; see [What just happened](what-happened.md).
 You have three options.
 
 **a. Use a Linux image you already have.**
-Anything that listens on a port works under the linuxulator, as long as it does not expect cgroups or `systemd`.
-This is the shortest path and the one to take if you just want to see the machinery move.
+Most things that listen on a port work under the linuxulator, as long as they do not expect cgroups, `systemd`, or a kernel interface the emulation lacks.
+The official `nginx` image is the measured counterexample: its workers want `EPOLLEXCLUSIVE`, [which is not there](../use/linux-containers.md#where-the-emulation-stops).
+This is the shortest path if you have an image you trust to be jail-friendly, and the FreeBSD build below is the one this site can vouch for.
 
 **b. Build a FreeBSD nginx image with `satl build`.**
 This is the path the rest of the site takes, and it has one prerequisite: the base image in the `FROM` line has to exist somewhere this node can pull it from.
@@ -79,11 +80,19 @@ A `Satlfile` is the pkg-shaped subset of a Dockerfile, `COPY` and `RUN` included
 ```text
 FROM 127.0.0.1:5000/satl-test/freebsd-runtime:15.1
 PKG nginx
+COPY index.html /usr/local/www/nginx/index.html
 EXPOSE 80/tcp
 ENTRYPOINT ["/usr/local/sbin/nginx", "-g", "daemon off;"]
 ```
 
+The `COPY` line is not decoration.
+nginx's default config serves `/usr/local/www/nginx`, which on a normal host is a symlink the package's post-install script creates; `PKG` installs with `pkg --rootdir`, which runs no post-install scripts, so the image has no document root and every request answers `404 Not Found`.
+Copying an `index.html` there creates the directory and gives nginx something to serve.
+
+Put the page next to the Satlfile and build:
+
 ```sh
+echo "satl-test-ok" > index.html
 sudo satl build -t 127.0.0.1:5000/satl-test/freebsd-nginx:latest
 ```
 
@@ -135,16 +144,17 @@ it published a port" from "packets are being translated":
 
 ```console
 $ pfctl -a satl/rdr -s nat
-rdr pass inet proto tcp from any to any port = http-alt -> 10.88.0.5 port 80
+rdr pass inet proto tcp from any to any port = http-alt -> <satl_p8080_tcp_80> port 80 round-robin
 ```
 
 `pfctl` prints `http-alt` for 8080; that is its own normalisation, not something SatL wrote.
+The target is a pf table rather than one address, so the same rule balances across replicas; `pfctl -a satl/rdr -t satl_p8080_tcp_80 -T show` lists its members, here the container's bridge address.
 An empty anchor reports `does not exist`, and that means no redirect.
 
 **The daemon agrees:**
 
 ```sh
-grep -a 'loaded pf anchor' /var/log/messages | tail -2
+grep -a -E 'published ports (reloaded|converged)' /var/log/messages | tail -2
 ```
 
 ## 6. The test that will not work { #6-the-test-that-will-not-work }

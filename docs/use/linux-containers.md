@@ -46,6 +46,8 @@ INFO satld::node: linuxulator available; linux/* images may be selected osreleas
 ```
 
 The other arm of that line names `kldload linux` as the fix.
+Startup is also the **only** time it probes.
+If `satld` was already running when you enabled the emulation, restart it (`service satld restart`); measured on a running daemon, every Linux image stays refused with `no matching platform for freebsd/amd64` until the restart, however healthy the sysctls look.
 A node that runs only FreeBSD images needs none of this; the capability is per node, and the scheduler treats it as one.
 
 ## How a task ends up being a Linux task
@@ -131,7 +133,8 @@ None of it is a bug list; it is the shape of a jail, and a jail is not a Linux c
     A one-sentence refusal is a better experience than a container that vanishes in silence.
 
     What to use instead: an image whose entrypoint is the service itself.
-    That is how official images for nginx, Postgres, Redis, Node and most others are already built.
+    That is how most official images (Postgres, Redis, Node, and others) are already built.
+    A plain entrypoint is necessary rather than sufficient: the official nginx image has one and still fails here, on an epoll flag listed [below](#where-the-emulation-stops).
 
 !!! warning "`/proc/meminfo` reports the host's memory, whatever the limit says"
 
@@ -151,6 +154,10 @@ None of it is a bug list; it is the shape of a jail, and a jail is not a Linux c
 A shorter list of things that simply are not there, each of which fails cleanly rather than mysteriously:
 
 - **netlink, `io_uring`, cgroupfs**: anything using them fails; expect `unsupported prctl option` lines in `dmesg` from programs probing for capabilities they cannot get.
+- **`EPOLLEXCLUSIVE`, and Linux AIO (`io_setup`)**: both missing, and the official `nginx` image is the measured casualty.
+  Its workers ask for both, log `io_setup() failed (38: Function not implemented)` and `epoll_ctl(1, 9) failed (22: Invalid argument)`, and exit; the master keeps running, so the container shows `Up`, the published port accepts the TCP handshake, and no byte ever comes back.
+  `dmesg` says `epoll_ctl unsupported flags: 0x10000001`, which is `EPOLLEXCLUSIVE|EPOLLIN`.
+  Serve HTTP from [the FreeBSD nginx build](../start/first-container.md#3-get-an-image-that-serves-something) instead, or from a server that does not use exclusive-wakeup epoll.
 - **OFD file locks** return `EINVAL`, which occasionally surprises a database or a lockfile library.
 - **SysV IPC is off** in a jail by default, and PostgreSQL cannot even `initdb` without it.
   Opt in per container with the labels `satl.jail.sysvshm=new` and `satl.jail.sysvsem=new`.
