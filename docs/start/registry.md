@@ -118,7 +118,7 @@ mkdir -p /var/db/satl-registry
 
 ```sh
 sysrc docker_registry_enable=YES
-service docker_registry start >/dev/null 2>&1
+service docker_registry start
 ```
 
 The service name has an underscore (`docker_registry`); the rc.d script calls the program `registry`, so its own messages say `registry`.
@@ -234,7 +234,7 @@ The registry has a `registry garbage-collect <config>` subcommand for dropping l
 ```sh
 service docker_registry stop
 rm -rf /var/db/satl-registry/*
-service docker_registry start >/dev/null 2>&1
+service docker_registry start
 ```
 
 Then re-run [step 5](#5-seed-the-base-image).
