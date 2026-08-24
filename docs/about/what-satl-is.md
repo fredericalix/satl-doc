@@ -48,7 +48,9 @@ Both are services, because there is nothing else for them to be.
 
 **One orchestrator, or none, is not a choice you have to make.**
 The single-machine story and the cluster story are the same story.
-There is no "development mode" that behaves differently from production, no `docker-compose` on one host and Swarm on three, no moment where you rebuild your mental model because you added a machine.
+There is no "development mode" that behaves differently from production, and no moment where you rebuild your mental model because you added a machine.
+`satl compose` and `satl stack deploy` do differ in *scope* — one node or the cluster — but not in what they make: a service, with tasks, in the same store, reconciled by the same loops.
+Where Docker gives you two engines to learn, this gives you one model in two sizes.
 A scheduler that has been placing tasks since first boot places them the same way when there are three nodes.
 
 **Desired state is the only state you set.**

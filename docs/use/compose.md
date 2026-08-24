@@ -1,59 +1,77 @@
 # Compose files
 
-`satl compose up` reads a Compose file and deploys it.
-What it deploys is the part worth reading this page for: **services, not containers**, and that is a different thing from what `docker compose up` does on your laptop.
+SatL reads a Compose file in two scopes, and you pick which by the verb you type.
+
+- **`satl compose`** runs the whole file on the node you are talking to. That is
+  `docker compose`'s scope.
+- **`satl stack deploy`** spreads the same file across the cluster, on an
+  overlay, placed by the scheduler. That is `docker stack deploy`'s scope.
+
+Same file, same planner. What changes is where the tasks run, and therefore what
+the file is allowed to say.
 
 ```sh
 cd /srv/shop              # compose.yaml lives here, so the project is "shop"
-satl compose config       # what would be created, as JSON — reaches no daemon
-satl compose up           # networks first, then one service per compose service
-satl compose ps           # this project's tasks, across the cluster
-satl compose down         # removes exactly what `up` created
+satl compose config       # what would be created, as JSON
+satl compose up           # deploys, then attaches to the output (^C detaches)
+satl compose up -d        # ... or returns instead. Scripts want this
+satl compose ps           # this project's tasks, all on this node
+satl compose logs --follow
+satl compose down -v      # remove what up created, volumes included
 ```
 
-!!! tip "`satl stack` is the same machinery under Docker's verb names"
+!!! warning "This changed in 0.2.0"
 
-    `satl stack deploy -c compose.yaml shop` is `compose up` with the stack name as the project, `stack rm` is `down`, `stack config` is `config`, and `stack ls` / `stack services` / `stack ps` read the project label off the services.
-    Docker's default applies on `deploy`: `--prune` is on unless said otherwise (compose's `up` keeps its explicit `--remove-orphans`).
-    See the [`satl stack`](../reference/cli/stack.md) reference.
+    Before 0.2.0, `satl compose up` did what `satl stack deploy` does now: it
+    deployed across the cluster. If you have a project from an older release,
+    either `satl compose down` it with the old binary first, or keep it on the
+    cluster with `satl stack deploy`. The object names differ between the two,
+    so the new verb will not adopt the old project.
 
-## It has stack semantics, not `docker compose` semantics
+## What does not change: every container is a task of a service
 
-Docker has two worlds: `docker compose` makes containers on one host, and `docker stack deploy` makes services on a swarm.
-SatL has only the second, because it has no standalone container; [every container is a task of a service](containers-and-services.md), and the cluster is always on.
+Neither verb makes a standalone container. There is no such thing here
+([every container is a task of a service](containers-and-services.md)), so both
+create **one service per compose service**, and both honour `deploy:` rather
+than ignoring it. The number of containers is `deploy.replicas`, not one.
 
-So a compose file here necessarily becomes:
+That is the part people expect to differ and it does not. What differs is scope.
 
-- **one service per compose service**, replicated to `deploy.replicas` (default
-  1), not one container;
-- **on a shared overlay network** created for the project, not a per-project
-  bridge;
-- **scheduled across the cluster** by the ordinary scheduler, so a three-replica
-  service lands on up to three different nodes.
+## The two scopes, side by side
 
-!!! warning "The consequences of that, in one list"
+| | `satl compose` | `satl stack deploy` |
+| --- | --- | --- |
+| Where tasks run | this node, pinned | any eligible node |
+| Object names | `<project>-<service>` | `<project>_<service>` |
+| Project network | `bridge`, scope local | `overlay`, scope swarm |
+| Published ports | on this node | the ingress routing mesh |
+| `deploy.placement:` | refused | honoured |
+| Relative bind `./conf:/etc/nginx` | honoured | refused |
+| `build:` | builds a Satlfile here | refused |
+| `up` | attaches; `-d` returns | always detached |
+| `stop`/`start`/`restart`/`logs` | yes | no |
 
-    - Service objects are named `<project>_<service>`, networks
-      `<project>_<key>`, volumes `<project>_<key>`, so `satl service ls` shows
-      `shop_web`, not `web`.
-    - `deploy:` is **honoured**, where `docker compose` ignores it.
-    - `container_name:`, `scale:` and the rest of the single-host half of the
-      Compose Spec are **refused**, not ignored.
-    - The number of containers is `deploy.replicas`.
-      There is no `--scale`.
-    - `up` never attaches, and there is no `satl compose logs`.
+The hyphen and the underscore are docker's own split, not ours: compose v2 names
+*containers* with a hyphen, `docker stack deploy` names *services* with an
+underscore.
 
-`satl compose --help` says the same thing, deliberately: a familiar command that
-does something else owes you the warning before you type it.
+### Hostnames keep working in both
 
-### Hostnames keep working anyway
+Namespacing would break the file's own hostnames; `shop-redis` does not answer
+to `redis:6379`. So every attachment carries the bare compose service name as a
+**DNS alias**, which is what `docker stack deploy` does too. SatL's
+[DNS responder](networks.md#container-dns) resolves an alias like a service
+name, and per-network `aliases:` are appended after it.
 
-The namespacing would break the file's own hostnames; `shop_redis` does not answer to `redis:6379`.
-So every attachment `up` creates carries the bare compose service name as a **DNS alias**, which is exactly what `docker stack deploy` does, and SatL's [DNS responder](networks.md#container-dns) resolves an alias like a service name.
-Per-network `aliases:` are appended after it.
+!!! danger "A compose project is not an isolation boundary"
 
-The one thing to watch: two projects sharing one **external** network cannot both declare a service of the same name, because the alias would be ambiguous and DNS round-robin would answer with tasks of both.
-Give each project its own network, which is the default, or rename the service.
+    SatL programs **one bridge per node**, not one per network. Two projects on
+    "different" bridge networks therefore share one L2 segment and can reach
+    each other by address. Service *names* are scoped per project, so `redis` in
+    one project never resolves to another's. Addresses are not scoped.
+
+    When isolation is the requirement, use separate nodes, or an overlay through
+    `satl stack deploy`.
 
 ## A file that works
 
@@ -65,32 +83,21 @@ services:
     image: registry.example.com/freebsd-nginx:1
     ports:
       - "8080:80"
-    networks: [front]
+    volumes:
+      - "./conf:/usr/local/etc/nginx"
     configs:
       - source: nginx_conf
         target: /usr/local/etc/nginx/nginx.conf
     healthcheck:
       test: ["CMD-SHELL", "fetch -qo /dev/null http://127.0.0.1/ || exit 1"]
       start_period: 10s
-    deploy:
-      replicas: 3
-      update_config:
-        parallelism: 1
-        monitor: 10s
-      placement:
-        constraints:
-          - node.role == worker
 
   redis:
     image: registry.example.com/redis:7
-    networks: [front]
     secrets:
       - source: redis_auth
         target: auth.conf
         mode: 0440
-
-networks:
-  front:
 
 configs:
   nginx_conf:
@@ -102,22 +109,117 @@ secrets:
 ```
 
 ```console
-$ satl compose up
-network shop_front created
-service shop_web created
-service shop_redis created
+$ satl compose up -d
+network shop-default created
+service shop-redis created
+service shop-web created
 ```
 
 That file also happens to be the **only way to declare a healthcheck from the
 CLI**; `satl service create` has no `--health-*` flags at all (see
 [Healthchecks](healthchecks.md#defining-one)).
 
+## What running on one node buys you
+
+Four things the cluster scope cannot give, all for the same reason: the task
+runs on the node you are talking to, and `satl` speaks a unix socket, so that
+node's filesystem is the one you are looking at.
+
+**A relative bind means what it says.** `./conf:/usr/local/etc/nginx` is
+resolved against the project directory. `~` is expanded; `~user` is not, and is
+refused rather than guessed.
+
+**`build:` builds an image here.** See below.
+
+**`down -v` can remove the volumes.** There is one node to remove them from.
+
+**`up` can attach, and there is a `logs` verb.** Task output is node-local, so
+following a whole project only works when the project is on one node.
+
+## Building images
+
+A service may declare `build:` instead of `image:`. The image is tagged
+`<project>-<service>:latest`, or `image:` when you give one, and used straight
+from this node's store — **no registry involved**, because the task that uses it
+is pinned to the node that built it.
+
+```yaml
+services:
+  app:
+    build: ./app          # ./app/Satlfile
+```
+
+```sh
+satl compose build          # build without deploying
+satl compose up --build     # build, then deploy
+```
+
+!!! warning "It builds a `Satlfile`, not a Dockerfile"
+
+    SatL's builder reads a [`Satlfile`](images.md#satl-build): the subset of
+    Dockerfile verbs that makes sense for pkg-based FreeBSD images. `dockerfile:`
+    keeps compose's key name, because that is the key people type, but it only
+    says *which file to read*. The file's contents must be Satlfile syntax.
+
+    Refused with a reason each, because the builder genuinely cannot honour
+    them: `args:` (a Satlfile has no `ARG`), `target:` (several stages are
+    allowed, but the last is always the one packed), `cache_from`, `ssh`,
+    `secrets`, `platform`, `network` and `tags`.
+
+    Both verbs need **root**, because writing to the image store does.
+
+Two behaviours worth knowing. Rebuilding under the same tag *does* replace the
+running tasks: SatL stamps the new image's digest into the service so the
+rolling updater picks it up. And the builder is not reproducible — two builds of
+an unchanged tree differ — so `--build` replaces the tasks every time, not only
+when something changed.
+
+## Managing a running project
+
+None of these three is docker's, and none of them can be: a task is one-shot and
+is never paused and resumed.
+
+| Command | What it does |
+| --- | --- |
+| `satl compose stop` | scales every service to 0 replicas, keeping the services, the network and the volumes |
+| `satl compose start` | scales them back to what **the file** says |
+| `satl compose restart` | replaces the tasks, under each service's own update policy |
+
+`start` therefore needs the compose file, where `stop` does not. That is
+deliberate: nothing is stashed in a hidden label, so a `start` from another
+checkout restores a number you can read. And `restart` brings tasks back with
+**new ids** in the same slots, because a replacement is what "restart" means
+here.
+
+`satl compose up --scale web=3` overrides the file's replica count for one run.
+It is held to the same rules the file is; see the host-port refusal below.
+
+## Following the output
+
+`satl compose up` attaches unless you pass `-d`. Each line is prefixed with
+`<service>-<slot>`, one colour per service on a terminal and none when
+redirected.
+
+```console
+$ satl compose logs --follow
+web-1   | 2026/08/24 12:29:58 [notice] start worker processes
+redis-1 | Ready to accept connections
+```
+
+!!! warning "Ctrl-C detaches; it does not stop the project"
+
+    `docker compose up` stops the containers on the first Ctrl-C. Here the
+    project is already deployed by the time attaching begins, so a keystroke
+    does not undeploy it. Use `satl compose stop`.
+
+    `--follow` has no `-f`, because at this level `-f` is already `--file`.
+
 ## The supported subset
 
 Read per service:
 
-`image` · `command` · `entrypoint` · `environment` · `env_file` · `ports` ·
-`volumes` · `secrets` · `configs` · `healthcheck` · `labels` · `user` ·
+`image` · `build` · `command` · `entrypoint` · `environment` · `env_file` ·
+`ports` · `volumes` · `secrets` · `configs` · `healthcheck` · `labels` · `user` ·
 `working_dir` · `hostname` · `stop_signal` · `stop_grace_period` · `restart` ·
 `networks` · `depends_on`
 
@@ -126,21 +228,24 @@ and under `deploy:`: `mode` · `replicas` · `labels` · `resources` ·
 `rollback_config`.
 
 Top level: `name` · `services` · `networks` · `volumes` · `secrets` · `configs`.
-`x-` extension keys are accepted and ignored, because the Compose Spec reserves them and a YAML anchor block usually lives in one.
+`x-` extension keys are accepted and ignored, because the Compose Spec reserves
+them and a YAML anchor block usually lives in one.
 
 ### Anything else is refused, not ignored
 
 !!! danger "A file that half-deployed would be worse than one that was refused"
 
-    `docker stack deploy` prints `Ignoring unsupported options: …` and carries on.
-    A 200-line file that silently deployed two thirds of itself is the trap this refusal exists to avoid.
-    Every refusal names **the file, the place in it, and the reason**, and it happens before anything is created:
+    `docker stack deploy` prints `Ignoring unsupported options: …` and carries
+    on. A 200-line file that silently deployed two thirds of itself is the trap
+    this refusal exists to avoid. Every refusal names **the file, the place in
+    it, and the reason**, before anything is created:
 
     ```console
     $ satl compose up
-    Error: /srv/shop/compose.yaml: services.web.build: compose build: is not
-    supported: build the image with `satl build` (or any builder that can push
-    to a registry) and name the result with `image:`
+    Error: /srv/shop/compose.yaml: services.web.deploy.placement: `satl compose`
+    runs every task on the node you are talking to, so there is nothing left to
+    place: a constraint or a preference could only make the service
+    unschedulable. Deploy across the cluster with `satl stack deploy` to use it
     ```
 
     A key with no bespoke reason of its own still fails, with the list of keys
@@ -148,12 +253,12 @@ Top level: `name` · `services` · `networks` · `volumes` · `secrets` · `conf
 
 The four you are most likely to meet, bringing a file from a single host:
 
-| What is in the file | Why it is refused | What to do |
+| What is in the file | Under `satl compose` | Under `satl stack deploy` |
 | --- | --- | --- |
-| `build:` | compose `build:` is not supported; builds are `satl build`'s job, not the deploy path's | build with `satl build` (or any builder that can push to a registry), then name the result with `image:` |
-| `./conf:/etc/nginx` | a relative bind is a path on *your* workstation, not on the nodes | deliver the file as a `config:`, or use an absolute path that exists on every node |
-| `${TAG}` | there is no interpolation, and passing it through literally would ask for the tag `${TAG}` | substitute before deploying, or generate the file |
-| `driver: bridge` on a network | a stack spans the cluster and only the overlay driver does | drop it (the default is `overlay`), or use `satl network create -d bridge` for a node-local object |
+| `build:` | builds a `Satlfile` | refused: build it once and `--push` it |
+| `./conf:/etc/nginx` | honoured | refused: that path is not on the nodes |
+| `${TAG}` | refused, everywhere | refused, everywhere |
+| `driver: bridge` on a network | the default | refused: a stack needs the overlay |
 
 Also refused, with a reason each: `privileged`, `cap_add`/`cap_drop`, `devices`,
 `network_mode`, `profiles`, `extends`, `container_name`, `scale`, every
@@ -161,25 +266,41 @@ Also refused, with a reason each: `privileged`, `cap_add`/`cap_drop`, `devices`,
 `init`, `pid`, `ipc`, `uts`, `userns_mode`, `security_opt`, `shm_size`, `tmpfs`,
 `links`, `volumes_from`, `expose`, `dns`, `extra_hosts`, `logging`, `platform`,
 `read_only`, `tty`, `stdin_open`, `stop_timeout`, `develop`, `pull_policy`,
-`runtime`, every `cgroup*` key, `deploy.preferences`, and top-level `include`.
+`runtime`, every `cgroup*` key, and top-level `include`.
+
+### One host port, one node
+
+`satl compose` publishes on the node it runs on, so a fixed host port can be
+taken exactly once. Asking for more than one replica of a service that publishes
+one is refused, rather than left with tasks that can never be placed:
+
+```console
+$ satl compose up
+Error: /srv/shop/compose.yaml: services.web: 3 replicas with host port 8080
+published: a host port can only be taken once on a node ...
+```
+
+Drop the fixed port (`"80"` alone publishes on an ephemeral one), ask for one
+replica, or spread the service over the cluster with `satl stack deploy`.
 
 ### No interpolation, and one file
 
-- **`${TAG}` and `$TAG` are refused**, naming the line and the column.
-  There is no `.env` loading, no `${VAR:-default}` grammar and no `--env-file` for the compose file itself.
-  Compose's *escape* is applied, though: `$$` becomes a literal `$` in one text-level pass, so a command written for compose (`sh -c 'echo $$HOME'`) means the same thing here.
-- **One `-f/--file`, and no merging.**
-  No override file, no `include:`, no `extends:`.
-  Docker's merge rules are intricate and a half-merge is worse than none.
-- Discovery is Docker's: `compose.yaml`, `compose.yml`, `docker-compose.yml`, `docker-compose.yaml`, in that order, walking up from the working directory.
-  The first directory holding a candidate wins; several candidates in one directory is a warning naming the winner.
+- **`${TAG}` and `$TAG` are refused**, naming the line and the column. There is
+  no `.env` loading, no `${VAR:-default}` grammar and no `--env-file` for the
+  compose file itself. Compose's *escape* is applied, though: `$$` becomes a
+  literal `$` in one text-level pass.
+- **One `-f/--file`, and no merging.** No override file, no `include:`, no
+  `extends:`. Docker's merge rules are intricate and a half-merge is worse than
+  none.
+- Discovery is Docker's: `compose.yaml`, `compose.yml`, `docker-compose.yml`,
+  `docker-compose.yaml`, in that order, walking up from the working directory.
 
 ## The project name is what `down` acts on
 
-It comes from `-p`, else `COMPOSE_PROJECT_NAME`, else the file's `name:`, else the project directory's base name, Compose's own precedence.
-Normalization is Compose's too: lowercase, then **delete** (not replace) every character outside `[a-z0-9_-]`, then trim leading `_`/`-`.
-A directory called `my.app` is therefore the project `myapp`.
-A name you pass explicitly must already be normalized, and is refused otherwise.
+It comes from `-p`, else `COMPOSE_PROJECT_NAME`, else the file's `name:`, else
+the project directory's base name, Compose's own precedence. Normalization is
+Compose's too: lowercase, then **delete** every character outside `[a-z0-9_-]`,
+then trim leading `_`/`-`. A directory called `my.app` is the project `myapp`.
 
 `up` labels every object it creates:
 
@@ -191,16 +312,9 @@ com.docker.compose.network = <compose network key>     # on networks
 
 !!! success "`down` cannot remove somebody else's service"
 
-    `down` acts on **that label and nothing else**.
-    An object with exactly the name this project would use, but without the label, belongs to someone else, and both `up` and `down` refuse to touch it:
-
-    ```console
-    $ satl compose up
-    Error: network shop_front already exists and does not belong to project shop:
-    satl compose only touches what it created (label com.docker.compose.project).
-    Give the network another name in the file, or mark it `external: true` to use
-    it as it is
-    ```
+    `down` acts on **that label and nothing else**. An object with exactly the
+    name this project would use, but without the label, belongs to someone else,
+    and both `up` and `down` refuse to touch it.
 
     Because the label is the scope, `down` needs no compose file at all:
 
@@ -208,48 +322,41 @@ com.docker.compose.network = <compose network key>     # on networks
     satl compose down -p shop        # from anywhere, with nothing checked out
     ```
 
-    Two projects can share a cluster safely, and cleaning up after one never
-    reaches the other.
-
-An **orphan**, a service still carrying the label that the file no longer declares, is warned about by `up` and removed only with `--remove-orphans`.
-`down` removes it unconditionally, because `down` works from the label rather than from the file.
+An **orphan**, a service still carrying the label that the file no longer
+declares, is warned about by `up` and removed only with `--remove-orphans`.
+`down` removes it unconditionally, because `down` works from the label.
 
 ## A second `up` is a rolling update
 
-Each service is reposted against the version `up` read, so the [rolling updater](rolling-updates.md) replaces its tasks under the service's own `deploy.update_config` policy.
-Nothing is recreated from scratch, and nothing else in the stored spec is lost.
+Each service is reposted against the version `up` read, so the
+[rolling updater](rolling-updates.md) replaces its tasks under the service's own
+`deploy.update_config` policy. Nothing is recreated from scratch, and nothing
+else in the stored spec is lost.
 
-```console
-$ satl compose up
-network shop_front exists
-service shop_web updated
-service shop_redis updated
-```
+## `down` waits, and `-v` works on this node
 
-## `down` waits, and will not touch volumes
+Removing a network while a task still holds it is
+[refused by the daemon](networks.md#removing-a-network), and the tasks of the
+services just removed take their stop grace period to become terminal. So `down`
+retries the network delete for up to 90 s, saying on stderr that it is waiting.
 
-Removing a network while a task still holds it is [refused by the daemon](networks.md#removing-a-network), and the tasks of the services just removed take their stop grace period to become terminal.
-So `down` retries the network delete against the daemon's own answer for up to 90 s, saying on stderr that it is waiting.
+`satl compose down -v` then removes the volumes, last, for the same reason: a
+volume a task still holds cannot go.
 
-!!! warning "`-v/--volumes` is refused outright"
+!!! note "`-v` reads the file; a plain `down` does not"
 
-    A volume is a node-local ZFS dataset, one per node that ran a task, and volume labels are not persisted, so there is no label to scope a cluster-wide removal by and no single node to remove it from.
-    The CLI speaks to a unix socket only, so there is no remote `--host` to aim at either.
+    Volume labels are not persisted, so there is nothing to scope a removal by.
+    `-v` therefore takes the volume names from the **file** — the `<project>-<key>`
+    names it declares — where the rest of `down` works from the project label.
 
-    ```sh
-    satl compose config              # prints the volume names this project uses
-    ssh node2 satl volume ls
-    ssh node2 satl volume rm shop_redis-data
-    ```
-
-**Volumes are declarations only** in the first place: nothing is created for a top-level `volumes:` entry.
-A named volume is a dataset the agent makes on the node where a task first uses it, `driver:` must be `local`, and `driver_opts:` is refused.
-A service that mounts one gets a warning that the data is per node and does not follow a rescheduled task.
+    `satl stack rm` has no `-v` at all, as `docker stack rm` has none: a stack's
+    datasets are on whichever nodes ran a task. Remove those where each daemon
+    is: `ssh node2 satl volume rm shop_redis-data`.
 
 ## Secrets and configs must already exist
 
-Only `external: true` is accepted.
-A `file:` declaration is refused, and the refusal carries the recipe:
+Only `external: true` is accepted. A `file:` declaration is refused, and the
+refusal carries the recipe:
 
 ```console
 $ satl compose up
@@ -259,96 +366,92 @@ and a `down` must not delete it. Create it once with
 `satl secret create redis_auth ./auth.conf` and mark it `external: true` here
 ```
 
-That is not fussiness.
-[A secret is immutable](secrets-and-configs.md#rotation-is-by-replacement) (`update` is a `501`), so a second `up` after editing the file would silently keep the old payload, and `down` would then have to decide whether to delete cluster secret material it did not know it owned.
-Neither answer is one you want made for you.
-
+That is not fussiness. [A secret is immutable](secrets-and-configs.md#rotation-is-by-replacement),
+so a second `up` after editing the file would silently keep the old payload.
 `environment:` as a payload source is refused for a different reason: it would
 pass the secret through `satl`'s own process environment.
 
-References are resolved to store IDs with one `GET /secrets` / `GET /configs`
-**before anything is posted**, so a missing secret fails before any service is
-created rather than rejecting every task afterwards.
-
 !!! note "A `mode:` is read as octal however you write it"
 
-    This is a place where two YAML versions disagree silently.
-    An unquoted `0440` reaches a YAML 1.2 parser as the decimal digits `440`; Docker's own parser resolves it as octal.
-    SatL reads the digits as **octal** in both spellings, so `0440`, `"0440"` and `440` all mean `0o440`, the mode you wrote.
-    The cost is that a bare `mode: 700` is `0o700` here and decimal 700 in Docker; the benefit is that nobody ever gets a wider mode than they typed.
-    A digit outside 0–7 is refused.
+    An unquoted `0440` reaches a YAML 1.2 parser as the decimal digits `440`;
+    Docker's own parser resolves it as octal. SatL reads the digits as **octal**
+    in both spellings, so `0440`, `"0440"` and `440` all mean `0o440`. A digit
+    outside 0–7 is refused.
 
 ## Two keys that behave differently from a single host
 
-**`depends_on` is a warning, not an order.**
-There is no startup ordering in a cluster scheduler; the orchestrator places every task as soon as it can.
-The short form, and `condition: service_started`, are accepted with a warning naming the services; an undefined service name is an error.
-`condition: service_healthy` and `service_completed_successfully` are **refused**, because an application that asks for them relies on them.
-Retry the dependency in the container and give it a `healthcheck:`, which is what actually gates traffic here.
-(Docker's own `stack deploy` drops `depends_on` silently, printing nothing at all.)
+**`depends_on` is a warning, not an order.** There is no startup ordering: the
+orchestrator places every task as soon as it can. The short form, and
+`condition: service_started`, are accepted with a warning naming the services;
+an undefined service name is an error. `condition: service_healthy` and
+`service_completed_successfully` are **refused**, because an application that
+asks for them relies on them. Retry the dependency in the container and give it
+a `healthcheck:`, which is what actually gates traffic here.
 
-**Both `restart:` and `deploy.restart_policy:` are honoured**, the deploy policy winning and saying so; `docker stack deploy` drops `restart:` as unsupported.
-`restart: no|always|on-failure[:N]` maps onto the swarm conditions `none|any|on-failure`; `unless-stopped` is refused, because nothing here distinguishes "stopped by an operator" from "stopped".
+**Both `restart:` and `deploy.restart_policy:` are honoured**, the deploy policy
+winning and saying so; `docker stack deploy` drops `restart:` as unsupported.
+`restart: no|always|on-failure[:N]` maps onto the swarm conditions
+`none|any|on-failure`; `unless-stopped` is refused, because nothing here
+distinguishes "stopped by an operator" from "stopped".
 
 A few more mappings, so you know they are not dropped: `labels:` become the
-**container's** labels and `deploy.labels:` the **service's** (Docker's own
-split); `deploy.mode: global` becomes a global service;
-`deploy.placement.max_replicas_per_node` becomes `Placement.MaxReplicas`;
-`deploy.placement.preferences` accepts `spread: <descriptor>` (below);
-`deploy.endpoint_mode` accepts `dnsrr` only, since [there is no
-VIP](../docker-differences.md#you-expect-a-service-vip);
-`healthcheck.disable: true` becomes no probe, a bare string becomes `CMD-SHELL`,
-and a list not starting with `CMD`, `CMD-SHELL` or `NONE` is refused rather than
-silently producing no probe.
+**container's** labels and `deploy.labels:` the **service's**; `deploy.mode:
+global` becomes a global service; `healthcheck.disable: true` becomes no probe;
+a bare string becomes `CMD-SHELL`; and a list not starting with `CMD`,
+`CMD-SHELL` or `NONE` is refused rather than silently producing no probe.
 
-## Placement preferences: the soft nudge
+## Deploying the same file across the cluster
 
-Constraints are hard; a node either matches or is out.
-A placement *preference* only reorders the candidates, and the one strategy is `spread` over a descriptor's values:
+Everything above describes `satl compose`. The cluster verb is `satl stack`, and
+it is the same machinery with the other scope:
 
 ```sh
-satl service create --placement-pref spread=node.labels.zone --replicas 4 app:1
+satl stack deploy -c compose.yaml shop
+satl stack ls
+satl stack services shop
+satl stack ps shop
+satl stack rm shop
 ```
+
+`--prune` defaults on for `stack deploy`, as Docker's does, where `compose up`
+requires the explicit `--remove-orphans`. See the
+[`satl stack`](../reference/cli/stack.md) reference.
+
+Placement is the clearest thing that only works there. A constraint is hard; a
+**preference** only reorders the candidates, and the one strategy is `spread`
+over a descriptor's values:
 
 ```yaml
 deploy:
   placement:
+    constraints:
+      - node.role == worker
     preferences:
       - spread: node.labels.zone
 ```
 
-With four replicas over zones `a` and `b`, the scheduler puts two in each before it double-books one, where the default spread only counts nodes.
-The descriptor is `node.id`, `node.hostname`, `node.labels.<key>` or `engine.labels.<key>`; nodes missing the label form one empty-value group, as Docker's.
-A preference never makes a node ineligible; it is a nudge, not a filter, and a one-group cluster schedules exactly as without it.
+With four replicas over zones `a` and `b`, the scheduler puts two in each before
+it double-books one. The descriptor is `node.id`, `node.hostname`,
+`node.labels.<key>` or `engine.labels.<key>`.
 
-## The four subcommands, and the ones that are absent
-
-| Command | What it does |
-| --- | --- |
-| `satl compose up` | creates the networks, then one service per compose service. `-d` is accepted and is a no-op: `up` is always detached |
-| `satl compose down` | removes every object labelled with the project |
-| `satl compose ps` | the project's tasks, across the cluster, the same table as `satl service ps`, scoped by the project label |
-| `satl compose config` | prints the resolved **specs**, as JSON, without reaching the daemon |
-
-`satl compose config` is worth a habit.
-It does not print the merged compose file as Docker's does; it prints what `up` will post; the namespaced names, the DNS aliases, the project labels, the nanosecond durations and the ingress ports.
-That is where the surprises are.
-`--quiet` validates and prints nothing.
-
-Absent by design: `build`, `pull`, `run`, `exec`, `restart`, `stop`/`start`, `top`, `events`, `logs`, `--wait`, `--profile`.
-`up` is always detached because a cluster-wide log stream needs a log broker that does not exist yet.
-
-## When a stack does not come up
+## When a project does not come up
 
 --8<-- "ops-log-first.md"
 
 1. `satl compose config`: did the file even resolve to what you meant?
-2. `satl compose ps`: the task states and the node each one landed on.
-3. Then the daemon's own account, **on the node holding the failing task**.
+2. `satl compose ps`: the task states.
+3. `satl compose logs`: what the tasks themselves said.
+4. Then the daemon's own account, on the node holding the failing task.
 
-A task stuck in `Preparing` is usually an image that node cannot pull, and note that a [registry credential does not reach a service's own pull](images.md#authentication).
-A `Rejected` task names its reason (a missing bind source, a secret whose `uid` is not numeric).
-A task that starts and dies under a healthcheck is `Failed`, with the probe's exit code in the `ERROR` column of `satl compose ps`.
+A task stuck in `Preparing` is usually an image that node cannot pull, and note
+that a [registry credential does not reach a service's own pull](images.md#authentication).
+A `Rejected` task names its reason. A task that starts and dies under a
+healthcheck is `Failed`, with the probe's exit code in the `ERROR` column.
 
-The full list of deviations, numbered and dated, is entries 110–124 of
-`docs/api-compat.md` in the SatL source tree.
+!!! note "`satl compose up` needs a manager"
+
+    Every `/services` mutation is refused on a worker node, so `satl compose up`
+    there fails the same way `satl run` does. Run it on a manager.
+
+The full list of deviations, numbered and dated, is entries 110–124 and 169–182
+of `docs/api-compat.md` in the SatL source tree.

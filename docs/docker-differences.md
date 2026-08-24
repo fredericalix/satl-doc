@@ -202,25 +202,43 @@ Everything below is organised by what you are trying to do.
 
 ## You bring a Compose file
 
-- **`satl compose up` is `docker stack deploy`, not `docker compose up`.**
-  It creates one *service* per compose service, on an overlay network of the project's own, scheduled across the cluster, because there are no standalone containers to make.
-  `deploy:` is honoured rather than ignored, service objects are named `<project>_<service>`, and the replica count comes from `deploy.replicas`.
-- **Hostnames still work**: every attachment carries the bare compose service name
-  as a DNS alias, so `redis:6379` inside the file reaches `shop_redis`'s tasks.
-- **Unsupported keys are refused, not ignored.**
-  `docker stack deploy` prints `Ignoring unsupported options: …` and carries on; here `build:`, `container_name:`, `scale:`, `privileged:` and about forty more each fail with the file, the key and the reason named, before anything is created.
+- **Both of docker's worlds are here, and the verb picks one.** `satl compose`
+  runs the file on the node you are talking to, as `docker compose` does;
+  `satl stack deploy` spreads it over the cluster, as `docker stack deploy`
+  does. Until 0.2.0 both verbs did the second thing.
+- **Either way it creates *services*, not standalone containers**, because there
+  are none to make. So `deploy:` is honoured rather than ignored, and the
+  replica count comes from `deploy.replicas`.
+- **Names differ by scope**, docker's own split: `<project>-<service>` under
+  `satl compose`, `<project>_<service>` under `satl stack`.
+- **Hostnames still work**: every attachment carries the bare compose service
+  name as a DNS alias, so `redis:6379` inside the file reaches the right tasks.
+- **A compose project is not an isolation boundary.** SatL programs one bridge
+  per node, so two projects can reach each other by address. Names are scoped;
+  addresses are not.
+- **Unsupported keys are refused, not ignored.** `docker stack deploy` prints
+  `Ignoring unsupported options: …` and carries on; here `container_name:`,
+  `scale:`, `privileged:` and about forty more each fail with the file, the key
+  and the reason named, before anything is created.
 - **No interpolation and no merging**: `${TAG}` is refused rather than passed
   through, and there is one `-f` with no override file, no `include:` and no
   `extends:`.
-- **`down` is scoped by the project label, not by name**, so it cannot remove an object it did not create, and it needs no compose file; `satl compose down -p shop` is enough.
-  `-v/--volumes` is refused: volumes are node-local and their labels are not persisted.
-- **Secrets and configs must be `external: true`.**
-  A `file:` declaration is refused, because a secret is immutable and a second `up` would silently keep the old payload.
-- Absent: `build`, `pull`, `run`, `exec`, `logs`, `restart`, `stop`/`start`, `top`, `events`, `--wait`, `--profile`.
-  `up` is always detached.
+- **`down` is scoped by the project label, not by name**, so it cannot remove an
+  object it did not create, and it needs no compose file. `satl compose down -v`
+  does remove the volumes; `satl stack rm` has no `-v`, because a stack's
+  datasets are on whichever nodes ran a task.
+- **Secrets and configs must be `external: true`.** A `file:` declaration is
+  refused, because a secret is immutable and a second `up` would silently keep
+  the old payload.
+- **`build:` builds a `Satlfile`, not a Dockerfile**, and only under
+  `satl compose`: the image lands in one node's store, which is the node that
+  will run it. `args:` and `target:` are refused with the reason.
+- **`satl compose up` attaches** and Ctrl-C *detaches* rather than stopping the
+  project; pass `-d` to return instead. `satl stack deploy` is always detached.
+  Absent from both: `pull`, `run`, `exec`, `top`, `events`, `--wait`,
+  `--profile`.
 
 The whole subset, and each refusal, is on [Compose files](use/compose.md).
-
 ## You prune
 
 - **`satl system prune` is the only prune verb**: no `container`, `image`,

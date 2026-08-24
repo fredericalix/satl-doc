@@ -151,7 +151,7 @@ Issues go to the SatL repository:
 to <https://github.com/fredericalix/satl-doc>; every page has an edit link in
 its top-right corner, which is the shortest path for a wrong sentence.
 
-SatL is at 0.1.0-beta and the gaps people actually walk into are the ones worth
+SatL is at 0.2.0-alpha and the gaps people actually walk into are the ones worth
 closing first, so a report of the shape described above is genuinely useful, and
 a report saying "this worked, on this hardware, with this workload" is worth more
 than you would think.

@@ -49,7 +49,7 @@ What is different sits underneath: one daemon to install, nothing beside it to o
 
 ## Status: early, and real
 
-SatL is at **0.1.0-beta**, its first public release, under the [BSD-2-Clause licence](about/status.md#licensing), the same terms as FreeBSD itself.
+SatL is at **0.2.0-alpha**, under the [BSD-2-Clause licence](about/status.md#licensing), the same terms as FreeBSD itself.
 There is a FreeBSD package to install:
 
 ```sh

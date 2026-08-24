@@ -24,7 +24,8 @@ Containers, services, images, networks, volumes and secrets, day to day.
   health *does* here that it does not there.
 - **[Rolling updates](rolling-updates.md)**: the twelve policy flags, the rule
   that decides what yours did, and automatic rollback.
-- **[Compose files](compose.md)**: `satl compose up` with stack semantics, the
-  supported subset, and what it refuses rather than ignores.
+- **[Compose files](compose.md)**: `satl compose` on one node and
+  `satl stack deploy` across the cluster, the supported subset, and what each
+  refuses rather than ignores.
 - **[Reclaiming space](reclaiming-space.md)**: `satl system prune`, which is
   manual and node-local, and why a layer sometimes survives the first run.

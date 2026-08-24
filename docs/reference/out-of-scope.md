@@ -35,13 +35,11 @@ zfs list -o name,used,refer -r zroot/satl
 
 Do **not** reach for `zfs destroy` on a layer dataset.
 Nothing reconciles that: the image metadata still records the chain, so the image goes on being listed and the next container created from it fails at clone time naming a dataset you deleted by hand.
+## `satl compose` is a subset { #compose-limits }
 
-## `satl compose` is a subset, and it is a stack { #compose-limits }
-
-There **is** a `satl compose` (`up`, `down`, `ps`, `config`), and it has [stack semantics](../use/compose.md): one service per compose service, on an overlay, scheduled across the cluster.
-That is `docker stack deploy`'s model, not `docker compose`'s, and it is forced rather than chosen: SatL has no standalone container to make.
-
-What is deliberately not there:
+There **is** a `satl compose`, and since 0.2.0 it has
+[`docker compose`'s scope](../use/compose.md): the file runs on the node you are
+talking to. `satl stack deploy` is the cluster scope. What neither of them has:
 
 - **No variable interpolation.**
   `${TAG}` and `$TAG` are refused, naming the line and column.
@@ -51,16 +49,21 @@ What is deliberately not there:
 - **No merging.**
   One `-f`, no override file, no `include:`, no `extends:`.
   Docker's merge rules are intricate and a half-merge is worse than none.
-- **No `build`, `pull`, `run`, `exec`, `logs`, `restart`, `stop`/`start`, `top`,
-  `events`, `--wait` or `--profile`**, and `up` is always detached, a
-  cluster-wide log stream needs a log broker that does not exist yet.
-- **No `down -v`.**
-  A volume is a node-local dataset on whichever nodes ran a task, and volume labels are not persisted, so there is no label to scope a cluster-wide removal by.
-  `satl compose config` prints the names; remove them per node.
+- **No `pull`, `run`, `exec`, `top`, `events`, `--wait` or `--profile`**, and no
+  `rm`, because `down` covers it.
+- **`build:` builds a `Satlfile`, not a Dockerfile**, and only under
+  `satl compose`. A built image lands in one node's store, so a stack, whose
+  tasks are placed anywhere, refuses it. `args:` and `target:` cannot be
+  honoured: a Satlfile has no `ARG`, and a multi-stage build always packs its
+  last stage.
+- **No `down -v` for a stack.** `satl compose down -v` does remove the project's
+  volumes, because there is one node to remove them from. A stack's datasets are
+  on whichever nodes ran a task, and volume labels are not persisted, so there
+  is no label to scope a cluster-wide removal by.
 - **No secret or config created from a file.**
   Only `external: true`; a secret is immutable, so a second `up` after editing the file would silently keep the old payload.
-- **The single-host half of the Compose Spec is refused, not ignored.**
-  `container_name`, `scale`, `privileged`, `build`, `network_mode`, `profiles`, `extends` and about forty more each fail with the file, the key and the reason named.
+- **Much of the single-host half of the Compose Spec is still refused, not ignored.**
+  `container_name`, `scale`, `privileged`, `network_mode`, `profiles`, `extends` and about forty more each fail with the file, the key and the reason named.
   Docker's own `stack deploy` prints `Ignoring unsupported options: …` and carries on; a 200-line file that half-deployed is what this refuses.
 
 ## No daemon-side image build { #no-build }
@@ -69,6 +72,7 @@ What is deliberately not there:
 There is no BuildKit, no `Dockerfile` support, and no `/build` endpoint; it answers `404`.
 `/_ping` carries no `Builder-Version` header for the same reason.
 The Satlfile's `COPY` reads only the Satlfile's own directory, `RUN` executes in a chroot on the build host's kernel, and the image lands in the local node's store only.
+Since 0.2.0 a compose file may drive it with `build:`, under [`satl compose`](../use/compose.md#building-images) alone: that scope runs the task on the node that built the image, so "the local node's store" is the right store.
 
 **What to do for anything else.**
 Build elsewhere and push to a registry SatL can pull from.

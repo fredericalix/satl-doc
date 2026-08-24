@@ -1,6 +1,6 @@
 # Status
 
-SatL is at **0.1.0-beta**, its first public release, and still pre-1.0.
+SatL is at **0.2.0-alpha**, and still pre-1.0.
 This page says what works, what does not, and what is missing entirely, in terms of what you would try to do, not in terms of internal milestones.
 
 "Beta" is meant precisely here: the feature set below is complete enough to run real workloads, it has had **no independent security audit**, and no compatibility promise is made between pre-1.0 versions.
@@ -64,7 +64,7 @@ Encrypted at rest in the Raft store, delivered into a per-task tmpfs and never w
 Every node's certificate is renewed automatically part-way through its validity and swapped into the live TLS configuration without a restart.
 `satl ca rotate` replaces the cluster root CA on a live cluster with no downtime; services keep serving, sessions stay up, writes keep committing throughout.
 
-**Compose files**, with stack semantics: `satl compose up` deploys one *service* per compose service on a shared overlay, scheduled across the cluster, and refuses anything outside the supported subset instead of ignoring it.
+**Compose files**, in both of docker's scopes. `satl compose` runs the file on the node you are talking to; `satl stack deploy` spreads it across the cluster. Either way it creates one *service* per compose service, and refuses anything outside the supported subset instead of ignoring it.
 See [Compose files](../use/compose.md).
 
 **Disk reclamation.**
