@@ -135,7 +135,7 @@ ID             NAME             MODE         REPLICAS   IMAGE                   
 `web` came from `satl run --name web`.
 `hopeful_rhodes` came from a bare `satl run` that has since exited; the generated name is what a service gets when you did not name one.
 
-Every container in SatL is a task of a service; `satl run` creates an anonymous single-replica service and lets the ordinary machinery place it.
+Every container in SatL is a task of a service; `satl run` creates an anonymous single-replica service pinned to the node that served the request, so on a cluster the container still runs where `docker run` would run it: on the machine you spoke to.
 So removing the container has to remove the service too.
 If it did not, the reconciliation loop would compare "this service wants one replica" against "this service has zero", and put a fresh container exactly where you just removed one.
 You would have removed nothing.

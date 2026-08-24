@@ -161,7 +161,7 @@ Stripped of its comments, that is the whole config an ordinary first install nee
 The third mode, `disabled`, generates and logs the rules and never invokes `pfctl` at all, for hosts with no pf.
 
 Every other key is optional.
-The commented sample lists them, and the [`satld.toml` reference](../reference/satld-toml.md) documents all sixteen, including two the sample does not mention.
+The commented sample lists them all, and the [`satld.toml` reference](../reference/satld-toml.md) documents each of the sixteen.
 The ones you are most likely to need on a real host:
 
 - `zfs_root`, if your pool is not `zroot`.

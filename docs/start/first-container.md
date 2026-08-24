@@ -36,7 +36,7 @@ platform selection choosing the only platform this image offers.
 | --- | --- |
 | `Error response from daemon:` about a missing image | the registry is unreachable; check `net.inet.ip.forwarding` and the `satl/nat` anchor; a container that cannot reach a registry is usually a host that cannot forward |
 | the task reaches `PREPARING` and fails | `ocijail` is not installed, or `satld` is not running as root |
-| `no matching platform for freebsd/amd64 in docker.io/library/alpine:latest` | the linuxulator is off, so `linux/amd64` is never a candidate. [Enable it](../use/linux-containers.md#preparing-the-host), then `service satld restart`: the daemon probes for the emulation at startup only |
+| `no matching platform for freebsd/amd64 in docker.io/library/alpine:latest` | the linuxulator is off, so `linux/amd64` is never a candidate. [Enable it](../use/linux-containers.md#preparing-the-host); the daemon re-probes every 10 seconds, no restart needed |
 
 The daemon's log has the failing command line and its stderr; the CLI has the summary.
 Read the log:

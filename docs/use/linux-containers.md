@@ -39,15 +39,21 @@ That loads `linux.ko`, `linux64.ko` and `linux_common.ko`, the `linprocfs`, `lin
     sysctl compat.linux.osrelease kern.elf64.fallback_brand
     ```
 
-`satld` probes for the emulation at startup and tells you what it found, once, in the log:
+`satld` probes for the emulation at startup and re-probes it every 10 seconds, so enabling it under a running daemon needs no restart:
 
 ```
 INFO satld::node: linuxulator available; linux/* images may be selected osrelease=5.15.0
+INFO satld::reconcile: linuxulator is now available; linux/* images may be selected (the node description update follows within 20s)
 ```
 
-The other arm of that line names `kldload linux` as the fix.
-Startup is also the **only** time it probes.
-If `satld` was already running when you enabled the emulation, restart it (`service satld restart`); measured on a running daemon, every Linux image stays refused with `no matching platform for freebsd/amd64` until the restart, however healthy the sysctls look.
+The first line is the startup probe; the second is what a later `service linux start` produces, measured within 10 seconds, and the rest of the cluster sees the capability within about 30 (the node re-registers its description).
+
+!!! warning "`kldload linux` alone is a half-enabled linuxulator"
+
+    Measured: it loads `linux_common`, which provides the sysctl the probe reads, but neither `linux64.ko` nor `kern.elf64.fallback_brand`.
+    The node then advertises the capability while every 64-bit binary dies with `Exec format error` from ocijail.
+    Use `service linux start`, which loads all of it; the daemon's own log hints name the same command.
+
 A node that runs only FreeBSD images needs none of this; the capability is per node, and the scheduler treats it as one.
 
 ## How a task ends up being a Linux task

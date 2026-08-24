@@ -3,7 +3,7 @@
 
 # `satl stack` { #satl-stack }
 
-Manage stacks — Docker's `docker stack` verbs on SatL's compose machinery (a stack is one compose file's services and networks)
+Manage stacks -- Docker's `docker stack` verbs on SatL's compose machinery (a stack is one compose file's services and networks)
 
 ```console
 $ satl stack [OPTIONS] <COMMAND>
